@@ -1,0 +1,8 @@
+/node_modules
+/.devenv
+/old
+/crop.js
+/keep_alive.js
+/screenshot.js
+/test.js
+/local.properties
