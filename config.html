@@ -1,0 +1,1579 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fisch · config editor</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b0f14;
+    --panel: #121821;
+    --panel-2: #18212c;
+    --line: #2a3544;
+    --text: #e8eef6;
+    --muted: #8fa0b5;
+    --accent: #4cc9f0;
+    --accent-2: #ffd166;
+    --danger: #ff5d73;
+    --ok: #63e6a6;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .app { display: flex; flex-direction: column; height: 100%; }
+
+  header {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 14px; border-bottom: 1px solid var(--line); background: #0e141c;
+  }
+  .brand { font-weight: 700; letter-spacing: .2px; white-space: nowrap; }
+  .brand span { color: var(--accent); }
+  .grow { flex: 1; }
+  .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  .btn {
+    border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+    border-radius: 8px; padding: 7px 11px; white-space: nowrap;
+  }
+  .btn:hover { border-color: #3d5066; background: #1c2836; }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { background: #123a4a; border-color: #1d6c88; color: #dff7ff; }
+  .btn.primary:hover { background: #16495e; }
+  .btn.small { padding: 4px 8px; font-size: 12px; }
+  .btn.tiny { padding: 2px 6px; font-size: 12px; }
+  .btn.danger { color: var(--danger); }
+  .btn.pick { background: #132f3a; border-color: #225568; color: #bdeeff; }
+  .btn:disabled { opacity: .45; cursor: default; }
+
+  main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 430px; min-height: 0; }
+  .editor { display: flex; flex-direction: column; min-width: 0; min-height: 0; border-right: 1px solid var(--line); }
+
+  .canvas-toolbar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 10px; border-bottom: 1px solid var(--line); background: #0d131a;
+  }
+  .toolgroup { display: flex; align-items: center; gap: 4px; }
+  .toolgroup .btn { padding: 5px 9px; }
+  .zoom-label { min-width: 52px; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .cursor-readout { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .swatch { width: 18px; height: 18px; border-radius: 4px; border: 1px solid #ffffff33; display: inline-block; vertical-align: middle; }
+  .dim { color: var(--muted); }
+  #imageName { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  #viewport {
+    position: relative; flex: 1; min-height: 0; overflow: auto;
+    background-color: #080b0f;
+    background-image:
+      linear-gradient(45deg, #0d1219 25%, transparent 25%, transparent 75%, #0d1219 75%),
+      linear-gradient(45deg, #0d1219 25%, transparent 25%, transparent 75%, #0d1219 75%);
+    background-size: 24px 24px;
+    background-position: 0 0, 12px 12px;
+    overscroll-behavior: contain;
+  }
+  #viewport.dragging { outline: 2px dashed var(--accent); outline-offset: -8px; }
+  #canvas { display: block; margin: 16px auto; cursor: crosshair; }
+  #canvas.pixelated { image-rendering: pixelated; }
+  #empty {
+    position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;
+    color: var(--muted); text-align: center; padding: 24px;
+  }
+  #empty strong { color: var(--text); display: block; margin-bottom: 6px; }
+  .hidden { display: none !important; }
+
+  .under-canvas {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 8px 10px; border-top: 1px solid var(--line); background: #0d131a;
+  }
+  .nudge { display: flex; align-items: center; gap: 4px; }
+  .nudge-grid { display: grid; grid-template-columns: repeat(3, 30px); grid-template-rows: repeat(2, 28px); gap: 3px; }
+  .nudge-grid [data-dir="up"] { grid-column: 2; grid-row: 1; }
+  .nudge-grid [data-dir="left"] { grid-column: 1; grid-row: 2; }
+  .nudge-grid [data-dir="down"] { grid-column: 2; grid-row: 2; }
+  .nudge-grid [data-dir="right"] { grid-column: 3; grid-row: 2; }
+  .nudge-grid .btn { padding: 0; }
+  .nudge-label { color: var(--muted); max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .status { color: var(--muted); font-size: 12px; }
+  .hint { color: var(--muted); font-size: 12px; margin: 0; }
+
+  aside {
+    background: var(--panel); overflow: auto; min-height: 0; padding: 12px;
+    scrollbar-color: #34465a transparent;
+  }
+  .card {
+    border: 1px solid var(--line); background: #101720; border-radius: var(--radius);
+    margin-bottom: 12px; overflow: hidden;
+  }
+  .card > h2 {
+    margin: 0; padding: 10px 12px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase;
+    color: #cfe2f5; background: #141e29; border-bottom: 1px solid var(--line);
+  }
+  .card > h2 small { display: block; margin-top: 2px; color: var(--muted); text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .card-body { padding: 10px 12px 12px; }
+  .field { margin-bottom: 10px; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label { display: block; color: #c6d5e5; margin-bottom: 4px; font-size: 12.5px; }
+  .inline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .coord { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
+  input[type="number"], input[type="text"], select {
+    background: #0b1118; border: 1px solid var(--line); border-radius: 6px;
+    padding: 5px 7px; outline: none; min-width: 0;
+  }
+  input[type="number"] { width: 82px; font-variant-numeric: tabular-nums; }
+  input[type="number"]:focus, input[type="text"]:focus, select:focus { border-color: var(--accent); }
+  input[type="color"] {
+    width: 34px; height: 30px; padding: 2px; border: 1px solid var(--line);
+    border-radius: 6px; background: #0b1118; cursor: pointer;
+  }
+  input.hex { width: 92px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: lowercase; }
+  input[type="range"] { flex: 1; min-width: 90px; accent-color: var(--accent); }
+  .with-slider { display: grid; grid-template-columns: minmax(80px, 1fr) 86px; gap: 8px; }
+  .unit { color: var(--muted); font-size: 12px; }
+  .field .hint { margin-top: 4px; }
+
+  .path-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .path-table th { color: var(--muted); font-weight: 500; font-size: 11px; text-align: left; padding: 0 2px 4px; }
+  .path-table td { padding: 2px; }
+  .path-table input[type="number"] { width: 100%; min-width: 54px; }
+  .path-table input[type="color"] { width: 32px; height: 28px; }
+  .path-index { color: var(--muted); font-size: 11px; text-align: center; }
+  .path-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+  details.help {
+    border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px;
+    background: #0f161f; color: var(--muted); font-size: 12px;
+  }
+  details.help summary { cursor: pointer; color: #cfe2f5; }
+  details.help p { margin: 8px 0 0; }
+  kbd {
+    border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px;
+    padding: 0 4px; font-size: 11px; color: var(--text); background: #0b1118;
+  }
+
+  @media (max-width: 860px) {
+    body { overflow: auto; }
+    .app { height: auto; min-height: 100%; }
+    main { display: flex; flex-direction: column; }
+    .editor {
+      position: sticky; top: 0; z-index: 10; background: var(--bg);
+      border-right: 0; border-bottom: 1px solid var(--line);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, .55);
+    }
+    #viewport { height: 34vh; min-height: 220px; flex: none; }
+    aside { overflow: visible; }
+    .under-canvas { padding: 6px 8px; }
+    #hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">Fisch <span>config</span></div>
+    <div class="grow"></div>
+    <div class="actions">
+      <label class="btn">Import config JSON<input id="configFile" type="file" accept=".json,application/json" hidden></label>
+      <label class="btn">Load screenshot<input id="imageFile" type="file" accept="image/*" hidden></label>
+      <button id="downloadConfig" class="btn primary" disabled>Download config.json</button>
+      <button id="resetConfig" class="btn">Start blank</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="editor">
+      <div class="canvas-toolbar">
+        <div class="toolgroup">
+          <button id="zoomOut" class="btn" title="Zoom out">−</button>
+          <span id="zoomLabel" class="zoom-label">100%</span>
+          <button id="zoomIn" class="btn" title="Zoom in">+</button>
+          <button id="zoomFit" class="btn" title="Fit screenshot">Fit</button>
+          <button id="zoomOne" class="btn" title="Actual pixels">1:1</button>
+        </div>
+        <span class="grow"></span>
+        <span id="imageName" class="dim">No screenshot loaded</span>
+        <span class="cursor-readout">x <span id="cursorX">—</span> · y <span id="cursorY">—</span></span>
+        <span id="hoverSwatch" class="swatch" title="Pixel color"></span>
+        <span id="hoverHex" class="dim">#------</span>
+      </div>
+
+      <div id="viewport">
+        <canvas id="canvas"></canvas>
+        <div id="empty"><div><strong>Load a screenshot to start</strong>Use “Load screenshot” above. Screenshots from the device or emulator work best.</div></div>
+      </div>
+
+      <div class="under-canvas">
+        <div class="nudge">
+          <div class="nudge-grid">
+            <button class="btn" data-dir="up" title="Nudge up">↑</button>
+            <button class="btn" data-dir="left" title="Nudge left">←</button>
+            <button class="btn" data-dir="down" title="Nudge down">↓</button>
+            <button class="btn" data-dir="right" title="Nudge right">→</button>
+          </div>
+          <div>
+            <div id="nudgeLabel" class="nudge-label">No position selected</div>
+            <label class="hint">Step
+              <select id="nudgeStep">
+                <option value="1">1 px</option>
+                <option value="5">5 px</option>
+                <option value="10">10 px</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <span class="grow"></span>
+        <span id="status" class="status">Blank configuration. Import default.json for a ready-made setup.</span>
+      </div>
+
+      <div style="padding: 8px 10px 12px">
+        <p id="hint" class="hint"></p>
+      </div>
+    </section>
+
+    <aside id="panel"></aside>
+  </main>
+</div>
+
+<script>
+"use strict";
+
+/* Neutral starting point. These are structural minimums, not calibrated
+   device values. Users can edit everything from scratch or import
+   default.json for a ready-made configuration. */
+const BLANK_CONFIG = {
+  "version": 2,
+  "moneyLevel": {
+    "baseColor": "#000000",
+    "paths": [
+      [0, 0, "#000000"]
+    ],
+    "region": [0, 0, 1, 1],
+    "threshold": 0
+  },
+  "shake": {
+    "baseColor": "#000000",
+    "paths": [
+      [0, 0, "#000000"]
+    ],
+    "threshold": 0
+  },
+  "minigame": {
+    "barX": 0,
+    "barY": 0,
+    "barWidth": 1,
+    "barHeight": 1,
+    "mainScanY": 0,
+    "secondaryScanY": 0,
+    "arrow": {
+      "width": 1,
+      "color": "#000000",
+      "threshold": 0,
+      "releasedMaxHitOffset": 0
+    },
+    "targetZone": {
+      "width": 1,
+      "leftOffsetWhenReleased": 0,
+      "leftOffsetWhenHolding": 0
+    },
+    "indicator": {
+      "color": "#000000",
+      "threshold": 0
+    }
+  },
+  "control": {
+    "holdX": 0,
+    "holdY": 0,
+    "holdMinMs": 30,
+    "holdMaxMs": 320,
+    "releaseMinMs": 0,
+    "releaseMaxMs": 100,
+    "pressLatencyMs": 12,
+    "holdAccelPxPerSec2": 900,
+    "releaseAccelPxPerSec2": 700,
+    "velocityCostMs": 180,
+    "deadbandPx": 15,
+    "accelAdaptPercent": 10,
+    "holdPenaltyPerMs": 0.05,
+    "minigameLockMs": 1200
+  }
+};
+
+const STORAGE_KEY = "fisch.config.v2";
+const BASE_KEY = "fisch.basepoints.v2";
+const LEGACY_KEYS = ["fisch.config.v1", "fisch.basepoints.v1"];
+
+const state = {
+  config: clone(BLANK_CONFIG),
+  image: null,
+  imageName: "",
+  zoom: 1,
+  fitMode: true,
+  selected: null,
+  pick: null,
+  pending: null,
+  hover: null,
+  basePoints: {}
+};
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const canvas = $("#canvas");
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
+const sourceCanvas = document.createElement("canvas");
+const sourceCtx = sourceCanvas.getContext("2d", { willReadFrequently: true });
+const viewport = $("#viewport");
+const panel = $("#panel");
+
+function clone(value) { return JSON.parse(JSON.stringify(value)); }
+function isObject(value) { return value !== null && typeof value === "object" && !Array.isArray(value); }
+function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
+function normalizeHex(value) {
+  const raw = String(value == null ? "" : value).trim();
+  if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
+  if (/^[0-9a-f]{6}$/i.test(raw)) return "#" + raw.toLowerCase();
+  return "#000000";
+}
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+}
+function getAt(root, path) {
+  return path.split(".").reduce((node, key) => (node == null ? undefined : node[key]), root);
+}
+function setAt(root, path, value) {
+  const keys = path.split(".");
+  let node = root;
+  for (let i = 0; i < keys.length - 1; i += 1) {
+    const key = keys[i];
+    if (node[key] == null) node[key] = /^\d+$/.test(keys[i + 1]) ? [] : {};
+    node = node[key];
+  }
+  node[keys[keys.length - 1]] = value;
+}
+
+function mergeDefaults(base, override) {
+  if (Array.isArray(base)) return Array.isArray(override) ? clone(override) : clone(base);
+  if (isObject(base)) {
+    const out = {};
+    const source = isObject(override) ? override : {};
+    for (const key of Object.keys(base)) out[key] = mergeDefaults(base[key], source[key]);
+    for (const key of Object.keys(source)) if (!(key in out)) out[key] = clone(source[key]);
+    return out;
+  }
+  return override === undefined ? base : override;
+}
+
+const REQUIRED_CONFIG = {
+  root: ["version", "moneyLevel", "shake", "minigame", "control"],
+  moneyLevel: ["baseColor", "paths", "region", "threshold"],
+  shake: ["baseColor", "paths", "threshold"],
+  minigame: ["barX", "barY", "barWidth", "barHeight", "mainScanY", "secondaryScanY", "arrow", "targetZone", "indicator"],
+  arrow: ["width", "color", "threshold", "releasedMaxHitOffset"],
+  targetZone: ["width", "leftOffsetWhenReleased", "leftOffsetWhenHolding"],
+  indicator: ["color", "threshold"],
+  control: [
+    "holdX", "holdY", "holdMinMs", "holdMaxMs", "releaseMinMs", "releaseMaxMs",
+    "pressLatencyMs", "holdAccelPxPerSec2", "releaseAccelPxPerSec2", "velocityCostMs",
+    "deadbandPx", "accelAdaptPercent", "holdPenaltyPerMs", "minigameLockMs"
+  ]
+};
+
+function configError(message) { throw new Error(message); }
+
+function requireConfigKeys(object, keys, label) {
+  if (!isObject(object)) configError(label + " must be an object");
+  for (const key of keys) {
+    if (!(key in object)) configError(label + "." + key + " is missing");
+  }
+}
+
+function requireConfigNumber(value, label) {
+  if (typeof value !== "number" || !Number.isFinite(value)) configError(label + " must be a finite number");
+}
+
+function requireConfigColor(value, label) {
+  if (typeof value !== "string" || !/^#[0-9a-f]{6}$/i.test(value)) configError(label + " must be a #rrggbb color");
+}
+
+function requireConfigPaths(paths, label) {
+  if (!Array.isArray(paths) || paths.length < 1) configError(label + " must be a non-empty array");
+  paths.forEach((point, index) => {
+    if (!Array.isArray(point) || point.length !== 3) configError(label + "[" + index + "] must be [dx, dy, color]");
+    requireConfigNumber(point[0], label + "[" + index + "].dx");
+    requireConfigNumber(point[1], label + "[" + index + "].dy");
+    requireConfigColor(point[2], label + "[" + index + "].color");
+  });
+}
+
+function assertConfig(config) {
+  requireConfigKeys(config, REQUIRED_CONFIG.root, "config");
+  requireConfigNumber(config.version, "config.version");
+
+  requireConfigKeys(config.moneyLevel, REQUIRED_CONFIG.moneyLevel, "moneyLevel");
+  requireConfigColor(config.moneyLevel.baseColor, "moneyLevel.baseColor");
+  requireConfigPaths(config.moneyLevel.paths, "moneyLevel.paths");
+  requireConfigNumber(config.moneyLevel.threshold, "moneyLevel.threshold");
+  const region = config.moneyLevel.region;
+  if (!Array.isArray(region) || region.length !== 4) configError("moneyLevel.region must be [x, y, w, h]");
+  region.forEach((value, index) => requireConfigNumber(value, "moneyLevel.region[" + index + "]"));
+  if (region[2] < 1 || region[3] < 1) configError("moneyLevel.region width and height must be positive");
+
+  requireConfigKeys(config.shake, REQUIRED_CONFIG.shake, "shake");
+  requireConfigColor(config.shake.baseColor, "shake.baseColor");
+  requireConfigPaths(config.shake.paths, "shake.paths");
+  requireConfigNumber(config.shake.threshold, "shake.threshold");
+
+  requireConfigKeys(config.minigame, REQUIRED_CONFIG.minigame, "minigame");
+  for (const key of ["barX", "barY", "barWidth", "barHeight", "mainScanY", "secondaryScanY"]) {
+    requireConfigNumber(config.minigame[key], "minigame." + key);
+  }
+  if (config.minigame.barWidth < 1) configError("minigame.barWidth must be positive");
+  if (config.minigame.barHeight < 1) configError("minigame.barHeight must be positive");
+
+  requireConfigKeys(config.minigame.arrow, REQUIRED_CONFIG.arrow, "minigame.arrow");
+  requireConfigNumber(config.minigame.arrow.width, "minigame.arrow.width");
+  requireConfigColor(config.minigame.arrow.color, "minigame.arrow.color");
+  requireConfigNumber(config.minigame.arrow.threshold, "minigame.arrow.threshold");
+  requireConfigNumber(config.minigame.arrow.releasedMaxHitOffset, "minigame.arrow.releasedMaxHitOffset");
+
+  requireConfigKeys(config.minigame.targetZone, REQUIRED_CONFIG.targetZone, "minigame.targetZone");
+  requireConfigNumber(config.minigame.targetZone.width, "minigame.targetZone.width");
+  requireConfigNumber(config.minigame.targetZone.leftOffsetWhenReleased, "minigame.targetZone.leftOffsetWhenReleased");
+  requireConfigNumber(config.minigame.targetZone.leftOffsetWhenHolding, "minigame.targetZone.leftOffsetWhenHolding");
+
+  requireConfigKeys(config.minigame.indicator, REQUIRED_CONFIG.indicator, "minigame.indicator");
+  requireConfigColor(config.minigame.indicator.color, "minigame.indicator.color");
+  requireConfigNumber(config.minigame.indicator.threshold, "minigame.indicator.threshold");
+
+  requireConfigKeys(config.control, REQUIRED_CONFIG.control, "control");
+  for (const key of REQUIRED_CONFIG.control) requireConfigNumber(config.control[key], "control." + key);
+}
+
+function normalizeConfig(raw) {
+  if (!isObject(raw)) configError("Config must be a JSON object.");
+  let source = raw;
+  const rootVersion = raw.version;
+
+  // Accept old multi-profile files by taking the active (or first) profile.
+  if (isObject(source.profiles)) {
+    const first = Object.keys(source.profiles)[0];
+    const profile = source.profiles[source.activeProfile] || source.profiles[first];
+    if (!isObject(profile)) configError("No profile found in config.");
+    source = clone(profile);
+    delete source.label;
+    if (source.version == null && rootVersion != null) source.version = rootVersion;
+  }
+
+  for (const key of ["moneyLevel", "shake", "minigame", "control"]) {
+    if (!(key in source)) configError("config." + key + " is missing");
+  }
+
+  const sourceCopy = clone(source);
+  if (isObject(sourceCopy.control) && Array.isArray(sourceCopy.control.hold)) {
+    sourceCopy.control.holdX = Number(sourceCopy.control.hold[0]);
+    sourceCopy.control.holdY = Number(sourceCopy.control.hold[1]);
+    delete sourceCopy.control.hold;
+  }
+  if (isObject(sourceCopy.control)) {
+    for (const key of ["settleMs", "holdGainMsPerPx", "releaseGainMsPerPx", "counterReleasePercentage"]) {
+      delete sourceCopy.control[key];
+    }
+  }
+
+  const config = mergeDefaults(BLANK_CONFIG, sourceCopy);
+  assertConfig(config);
+  return config;
+}
+
+function getConfig() { return state.config; }
+function setConfigPath(path, value) { setAt(state.config, path, value); }
+function getBase(group) { return state.basePoints[group] || null; }
+
+function effectiveMainScanY(game) {
+  return game.mainScanY ? game.mainScanY : game.barY + Math.floor(game.barHeight / 2) + 1;
+}
+
+function effectiveSecondaryScanY(game) {
+  return game.secondaryScanY ? game.secondaryScanY : effectiveMainScanY(game) - 7;
+}
+
+function saveLocal() {
+  if (!state.config) return;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.config)); } catch (error) { /* ignore */ }
+}
+function saveBasePoints() {
+  try { localStorage.setItem(BASE_KEY, JSON.stringify(state.basePoints)); } catch (error) { /* ignore */ }
+}
+function restoreBasePoints() {
+  try { state.basePoints = JSON.parse(localStorage.getItem(BASE_KEY) || "{}") || {}; }
+  catch (error) { state.basePoints = {}; }
+}
+
+function setStatus(text) { $("#status").textContent = text; }
+function setHint(text) { $("#hint").textContent = text; }
+
+function updateHint() {
+  if (!getConfig()) {
+    setHint("Import a config JSON to start.");
+  } else if (state.pick) {
+    if (state.pending) {
+      setHint("First point set. Click the second point on the screenshot.");
+    } else if (state.pick.kind === "width") {
+      setHint("Measure width: click the start pixel, then the end pixel. Width = |end − start| + 1.");
+    } else if (state.pick.kind === "rect") {
+      setHint("Select an area: click one corner, then the opposite corner.");
+    } else if (state.pick.kind === "barrect") {
+      setHint("Select the bar area: click one corner, then the opposite corner. X, Y, width, and height are calculated.");
+    } else if (state.pick.kind === "color") {
+      setHint("Pick " + state.pick.label + ": click the exact pixel whose color should be used.");
+    } else if (state.pick.kind === "base") {
+      setHint("Set the base anchor: click the pixel that matches the base color.");
+    } else if (state.pick.kind === "path") {
+      setHint("Pick path point " + (state.pick.index + 1) + ": click the matching pixel. The offset is relative to the base anchor.");
+    } else {
+      setHint("Pick " + state.pick.label + ": click the exact pixel on the screenshot.");
+    }
+  } else if (state.selected) {
+    setHint("Selected " + state.selected.label + ". Use the arrow buttons, arrow keys (Shift = 10 px), or the numeric inputs to fine-tune.");
+  } else {
+    setHint("Load a screenshot, then press a Pick button and click the pixel. Use Fit / 1:1 / + / − to zoom precisely.");
+  }
+}
+
+function readImagePoint(event) {
+  if (!state.image) return null;
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  const x = Math.floor((event.clientX - rect.left) * canvas.width / rect.width);
+  const y = Math.floor((event.clientY - rect.top) * canvas.height / rect.height);
+  if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) return null;
+  return { x, y };
+}
+
+function sampleColor(x, y) {
+  // Read from the untouched screenshot, never from the canvas with overlays.
+  const data = sourceCtx.getImageData(x, y, 1, 1).data;
+  return "#" + [data[0], data[1], data[2]].map(v => v.toString(16).padStart(2, "0")).join("");
+}
+
+function loadImageFile(file) {
+  if (!file) return;
+  if (!/^image\//.test(file.type) && !/\.(png|jpe?g|webp|bmp)$/i.test(file.name)) {
+    setStatus("That file does not look like an image.");
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  const image = new Image();
+  image.onload = () => {
+    state.image = image;
+    state.imageName = file.name;
+    state.selected = null;
+    state.pick = null;
+    state.pending = null;
+    sourceCanvas.width = image.naturalWidth;
+    sourceCanvas.height = image.naturalHeight;
+    sourceCtx.clearRect(0, 0, sourceCanvas.width, sourceCanvas.height);
+    sourceCtx.drawImage(image, 0, 0);
+    $("#imageName").textContent = file.name + " · " + image.naturalWidth + "×" + image.naturalHeight;
+    $("#empty").classList.add("hidden");
+    requestAnimationFrame(() => fit());
+    setStatus("Loaded " + file.name + ".");
+    URL.revokeObjectURL(url);
+  };
+  image.onerror = () => {
+    setStatus("Could not decode that image.");
+    URL.revokeObjectURL(url);
+  };
+  image.src = url;
+}
+
+function loadConfigObject(raw, source) {
+  state.config = normalizeConfig(raw);
+  state.selected = null;
+  state.pick = null;
+  state.pending = null;
+  saveLocal();
+  renderPanel();
+  draw();
+  setStatus("Loaded configuration from " + source + ".");
+}
+
+function downloadConfig() {
+  if (!state.config) {
+    setStatus("Import a config JSON first.");
+    return;
+  }
+  const text = JSON.stringify(state.config, null, 2) + "\n";
+  const blob = new Blob([text], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "config.json";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 5000);
+  setStatus("Downloaded config.json. Copy it next to main.js on the device.");
+}
+
+/* ------------------------------------------------------------------ */
+/* Panel rendering                                                     */
+/* ------------------------------------------------------------------ */
+
+function section(title, subtitle, body) {
+  return '<section class="card"><h2>' + escapeHtml(title) +
+    (subtitle ? "<small>" + escapeHtml(subtitle) + "</small>" : "") +
+    '</h2><div class="card-body">' + body + "</div></section>";
+}
+
+function field(label, control, hint) {
+  return '<div class="field"><span class="field-label">' + escapeHtml(label) + "</span>" +
+    '<div class="inline">' + control + "</div>" +
+    (hint ? '<p class="hint">' + escapeHtml(hint) + "</p>" : "") + "</div>";
+}
+
+function numberField(path, options = {}) {
+  const value = getAt(getConfig(), path);
+  const min = options.min == null ? "" : ' min="' + options.min + '"';
+  const max = options.max == null ? "" : ' max="' + options.max + '"';
+  const step = options.step == null ? 1 : options.step;
+  const attrs = 'data-path="' + path + '" data-type="number"';
+  const number = '<input type="number" ' + attrs + ' value="' + value + '"' + min + max + ' step="' + step + '">';
+  const unit = options.unit ? '<span class="unit">' + escapeHtml(options.unit) + "</span>" : "";
+  if (!options.slider) return number + unit;
+  return '<div class="with-slider"><input type="range" ' + attrs + ' value="' + value + '"' + min + max + ' step="' + step + '">' + number + "</div>";
+}
+
+function colorField(label, path, baseGroup) {
+  const value = normalizeHex(getAt(getConfig(), path));
+  const pick = '<button class="btn small pick" data-pick="color" data-path="' + path + '"' +
+    (baseGroup ? ' data-base-group="' + baseGroup + '"' : "") +
+    ' data-label="' + escapeHtml(label) + '">Pick</button>';
+  return field(label,
+    '<input type="color" data-path="' + path + '" data-type="color" value="' + value + '">' +
+    '<input type="text" class="hex" data-path="' + path + '" data-type="hex" value="' + value + '" spellcheck="false" maxlength="7">' +
+    pick,
+    baseGroup ? "Pick sets both the base color and the anchor used by path offsets." : ""
+  );
+}
+
+function pointField(label, xPath, yPath, hint) {
+  const config = getConfig();
+  const xValue = xPath ? getAt(config, xPath) : "";
+  const yValue = yPath ? getAt(config, yPath) : "";
+  const pick = '<button class="btn small pick" data-pick="point" data-xpath="' + (xPath || "") +
+    '" data-ypath="' + (yPath || "") + '" data-label="' + escapeHtml(label) + '">Pick</button>';
+  return field(label,
+    (xPath ? '<label class="coord">X <input type="number" data-path="' + xPath + '" data-type="number" value="' + xValue + '" min="0"></label>' : "") +
+    (yPath ? '<label class="coord">Y <input type="number" data-path="' + yPath + '" data-type="number" value="' + yValue + '" min="0"></label>' : "") +
+    pick,
+    hint
+  );
+}
+
+function rectField(label, path) {
+  const region = getAt(getConfig(), path);
+  return field(label,
+    '<label class="coord">X <input type="number" data-path="' + path + '.0" data-type="number" value="' + region[0] + '" min="0"></label>' +
+    '<label class="coord">Y <input type="number" data-path="' + path + '.1" data-type="number" value="' + region[1] + '" min="0"></label>' +
+    '<label class="coord">W <input type="number" data-path="' + path + '.2" data-type="number" value="' + region[2] + '" min="1"></label>' +
+    '<label class="coord">H <input type="number" data-path="' + path + '.3" data-type="number" value="' + region[3] + '" min="1"></label>' +
+    '<button class="btn small pick" data-pick="rect" data-path="' + path + '" data-label="' + escapeHtml(label) + '">Select area</button>',
+    "Click one corner and then the opposite corner. Width and height are calculated from the selection."
+  );
+}
+
+function widthField(label, path) {
+  const value = getAt(getConfig(), path);
+  return field(label,
+    '<input type="number" data-path="' + path + '" data-type="number" value="' + value + '" min="1">' +
+    '<span class="unit">px</span>' +
+    '<button class="btn small pick" data-pick="width" data-path="' + path + '" data-label="' + escapeHtml(label) + '">Measure</button>',
+    "Click the first and last pixel. Width is calculated automatically."
+  );
+}
+
+function barRectField() {
+  const game = getConfig().minigame;
+  return field("Bar area · BAR_X / BAR_Y / BAR_W / BAR_H",
+    '<label class="coord">X <input type="number" data-path="minigame.barX" data-type="number" value="' + game.barX + '" min="0"></label>' +
+    '<label class="coord">Y <input type="number" data-path="minigame.barY" data-type="number" value="' + game.barY + '" min="0"></label>' +
+    '<label class="coord">W <input type="number" data-path="minigame.barWidth" data-type="number" value="' + game.barWidth + '" min="1"></label>' +
+    '<label class="coord">H <input type="number" data-path="minigame.barHeight" data-type="number" value="' + game.barHeight + '" min="1"></label>' +
+    '<button class="btn small pick" data-pick="barrect" data-label="Bar area">Select bar area</button>',
+    "Click two opposite corners of the bar. X, Y, width, and height are calculated automatically."
+  );
+}
+
+function scanRowField(label, path, automaticHint) {
+  const value = getAt(getConfig(), path);
+  return field(label,
+    '<input type="number" data-path="' + path + '" data-type="number" value="' + value + '" min="0">' +
+    '<span class="unit">px</span>' +
+    '<button class="btn small pick" data-pick="point" data-ypath="' + path + '" data-label="' + escapeHtml(label) + '">Pick</button>' +
+    '<button class="btn small" data-action="auto-scan" data-path="' + path + '" title="Use the row derived from the bar geometry">Auto</button>',
+    "0 = automatic. " + automaticHint
+  );
+}
+
+function pathsTable(groupName, note) {
+  const config = getConfig();
+  const group = config[groupName];
+  const base = getBase(groupName);
+  const rows = group.paths.map((point, index) => {
+    const color = normalizeHex(point[2]);
+    return '<tr>' +
+      '<td class="path-index">' + (index + 1) + "</td>" +
+      '<td><input type="number" data-path="' + groupName + '.paths.' + index + '.0" data-type="number" value="' + point[0] + '"></td>' +
+      '<td><input type="number" data-path="' + groupName + '.paths.' + index + '.1" data-type="number" value="' + point[1] + '"></td>' +
+      '<td><input type="color" data-path="' + groupName + '.paths.' + index + '.2" data-type="color" value="' + color + '" title="' + color + '"></td>' +
+      '<td><button class="btn tiny pick" data-pick="path" data-group="' + groupName + '" data-index="' + index + '" data-label="' + escapeHtml(groupName + " path " + (index + 1)) + '">Pick</button></td>' +
+      '<td><button class="btn tiny danger" data-action="remove-path" data-group="' + groupName + '" data-index="' + index + '" title="Remove point">×</button></td>' +
+      "</tr>";
+  }).join("");
+  return '<table class="path-table"><thead><tr><th>#</th><th>dx</th><th>dy</th><th>color</th><th></th><th></th></tr></thead><tbody>' +
+    rows + "</tbody></table>" +
+    '<div class="path-actions">' +
+    '<button class="btn small" data-action="add-path" data-group="' + groupName + '">+ Add point</button>' +
+    '<button class="btn small pick" data-pick="base" data-group="' + groupName + '" data-label="' + escapeHtml(groupName + " base") + '">Set base anchor</button>' +
+    (base ? '<button class="btn small" data-action="clear-base" data-group="' + groupName + '">Clear anchor</button>' : "") +
+    "</div>" +
+    '<p class="hint">' + escapeHtml(note) + " " +
+    (base ? "Anchor: " + base.x + ", " + base.y + "." : "No anchor set. Pick the base color first, or use Set base anchor.") +
+    "</p>";
+}
+
+function updateConfigButtons() {
+  const download = $("#downloadConfig");
+  if (download) download.disabled = !state.config;
+}
+
+function renderPanel() {
+  const scrollTop = panel.scrollTop;
+  const config = getConfig();
+
+  if (!config) {
+    panel.innerHTML = section("No configuration loaded", "Import a JSON file to begin",
+      '<p class="hint">Import a configuration such as <code>default.json</code> or an existing ' +
+      '<code>config.json</code>, then customize it using the screenshot.</p>' +
+      '<button class="btn primary" data-action="import">Import config JSON</button>'
+    );
+    panel.scrollTop = scrollTop;
+    updateNudgeLabel();
+    updateConfigButtons();
+    return;
+  }
+
+  panel.innerHTML =
+    section("Status HUD · money / level", "Detects whether the minigame is on screen", "" +
+      colorField("Base color (anchor)", "moneyLevel.baseColor", "moneyLevel") +
+      rectField("Search region", "moneyLevel.region") +
+      field("Color threshold", numberField("moneyLevel.threshold", { min: 0, max: 255, step: 1, slider: true }), "Maximum per-channel difference when matching colors.") +
+      pathsTable("moneyLevel", "The base color anchors the path offsets. Each path point has its own offset and color.")
+    ) +
+    section("Shake prompt", "Finds and clicks the shake icon", "" +
+      colorField("Base color (anchor)", "shake.baseColor", "shake") +
+      field("Color threshold", numberField("shake.threshold", { min: 0, max: 255, step: 1, slider: true }), "Maximum per-channel difference when matching colors.") +
+      pathsTable("shake", "The base color anchors the path offsets. Each path point has its own offset and color.")
+    ) +
+    section("Fishing bar", "Bar geometry, arrows, target zone, indicator", "" +
+      barRectField() +
+      scanRowField("Main scan row · MAIN_SCAN_Y", "minigame.mainScanY", "Derived as bar Y + floor(height / 2) + 1.") +
+      scanRowField("Secondary scan row · SECONDARY_SCAN_Y", "minigame.secondaryScanY", "Derived as main scan Y − 7.") +
+      widthField("Arrow width · ARROW_W", "minigame.arrow.width") +
+      colorField("Arrow color", "minigame.arrow.color") +
+      field("Arrow color threshold", numberField("minigame.arrow.threshold", { min: 0, max: 255, step: 1, slider: true })) +
+      field("Released secondary scan max hit offset", numberField("minigame.arrow.releasedMaxHitOffset", { min: 0, max: 200, step: 1 }), "ARROW_RELEASED_SECONDARY_SCAN_MAX_HIT_OFFSET") +
+      widthField("Target zone width · TARGET_ZONE_W", "minigame.targetZone.width") +
+      field("Target left offset · released", numberField("minigame.targetZone.leftOffsetWhenReleased", { min: 0, max: 1000, step: 1 })) +
+      field("Target left offset · holding", numberField("minigame.targetZone.leftOffsetWhenHolding", { min: 0, max: 1000, step: 1 })) +
+      colorField("Indicator color", "minigame.indicator.color") +
+      field("Indicator threshold", numberField("minigame.indicator.threshold", { min: 0, max: 255, step: 1, slider: true }))
+    ) +
+    section("Controls", "Predictive hold/release pulse controller", "" +
+      pointField("Hold position · HOLD_X / HOLD_Y", "control.holdX", "control.holdY") +
+      field("Hold minimum", numberField("control.holdMinMs", { min: 0, max: 1000, step: 1, slider: true, unit: "ms" }), "Shortest hold pulse the controller may use.") +
+      field("Hold maximum", numberField("control.holdMaxMs", { min: 0, max: 2000, step: 1, slider: true, unit: "ms" }), "Longest hold pulse; raise this if the bar cannot brake in time.") +
+      field("Release minimum", numberField("control.releaseMinMs", { min: 0, max: 1000, step: 1, slider: true, unit: "ms" })) +
+      field("Release maximum", numberField("control.releaseMaxMs", { min: 0, max: 1000, step: 1, slider: true, unit: "ms" }), "Longest extra release before the next capture.") +
+      field("Press latency", numberField("control.pressLatencyMs", { min: 0, max: 200, step: 1, slider: true, unit: "ms" }), "Delay between calling press() and the touch being delivered.") +
+      field("Hold acceleration", numberField("control.holdAccelPxPerSec2", { min: 0, max: 5000, step: 10, slider: true, unit: "px/s²" }), "Starting estimate; the script adapts it while reeling.") +
+      field("Release acceleration", numberField("control.releaseAccelPxPerSec2", { min: 0, max: 5000, step: 10, slider: true, unit: "px/s²" }), "Starting estimate; the script adapts it while reeling.") +
+      field("Velocity cost", numberField("control.velocityCostMs", { min: 0, max: 1000, step: 10, slider: true, unit: "ms" }), "Higher values favour low relative velocity over quick centring.") +
+      field("Deadband", numberField("control.deadbandPx", { min: 0, max: 300, step: 1, slider: true, unit: "px" }), "Comfort zone around the fish line.") +
+      field("Acceleration adaptation", numberField("control.accelAdaptPercent", { min: 0, max: 100, step: 1, slider: true, unit: "%" }), "How quickly the acceleration estimate follows the game.") +
+      field("Hold penalty", numberField("control.holdPenaltyPerMs", { min: 0, max: 5, step: 0.01, slider: true }), "Small cost that makes the controller prefer releasing when both actions are similar.") +
+      field("Minigame lock", numberField("control.minigameLockMs", { min: 0, max: 5000, step: 100, slider: true, unit: "ms" }), "Inputs are ignored for this long after the minigame starts.")
+    ) +
+    section("Help", "How picking and fine-tuning work", "" +
+      '<details class="help" open><summary>Pixel picking</summary>' +
+      "<p>Press any <strong>Pick</strong> / <strong>Measure</strong> / <strong>Select area</strong> button, then click the screenshot. For two-click actions, the first click stores the start and the second click finishes.</p>" +
+      "<p>After picking a position, use the arrow pad or arrow keys to move by 1 px. Hold <kbd>Shift</kbd> for 10 px. You can also type exact coordinates.</p>" +
+      "<p>Path points are offsets from the group’s base anchor. Pick the base color first; clicking a path point then stores both its offset and its pixel color.</p>" +
+      "<p>Select the fishing bar with two opposite corners. Scan rows set to <code>0</code> are derived from the bar; press <strong>Auto</strong> to return to the derived row.</p>" +
+      "<p>Zoom with <strong>Fit</strong>, <strong>1:1</strong>, + / −, or <kbd>Ctrl</kbd> + wheel. At 2× and above the image is rendered pixel-for-pixel.</p>" +
+      "<p><strong>Start blank</strong> resets every value. Import <code>default.json</code> if you want a ready-made starting point instead.</p>" +
+      "<p>The screenshot and anchor positions stay in this browser. <strong>Download config.json</strong> writes the file to copy next to main.js.</p></details>"
+    );
+
+  panel.scrollTop = scrollTop;
+  updateNudgeLabel();
+  updateConfigButtons();
+}
+
+/* ------------------------------------------------------------------ */
+/* Editing events                                                      */
+/* ------------------------------------------------------------------ */
+
+function syncPathInputs(path, value, except) {
+  panel.querySelectorAll('[data-path="' + path + '"]').forEach(element => {
+    if (element === except) return;
+    if (element.dataset.type === "hex") {
+      if (typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value)) element.value = value.toLowerCase();
+    } else if (element.type === "color") {
+      if (typeof value === "string") element.value = normalizeHex(value);
+    } else {
+      element.value = value;
+    }
+  });
+}
+
+function isTypingTarget(target) {
+  return target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName);
+}
+
+function onPanelInput(event) {
+  if (!state.config) return;
+  const target = event.target;
+  const path = target.dataset.path;
+  if (!path) return;
+  const type = target.dataset.type;
+
+  if (type === "number") {
+    if (target.value === "") return;
+    const value = Number(target.value);
+    if (!Number.isFinite(value)) return;
+    setConfigPath(path, value);
+    syncPathInputs(path, value, target);
+    changed();
+  } else if (type === "color") {
+    setConfigPath(path, normalizeHex(target.value));
+    syncPathInputs(path, normalizeHex(target.value), target);
+    changed();
+  }
+}
+
+function onPanelChange(event) {
+  if (!state.config) return;
+  const target = event.target;
+  const path = target.dataset.path;
+  if (!path) return;
+  const type = target.dataset.type;
+
+  if (type === "hex") {
+    const value = target.value.trim();
+    if (!/^#[0-9a-f]{6}$/i.test(value) && !/^[0-9a-f]{6}$/i.test(value)) {
+      target.value = normalizeHex(getAt(getConfig(), path));
+      setStatus("Use a six-digit hex color, for example #fffde4.");
+      return;
+    }
+    const normalized = normalizeHex(value);
+    target.value = normalized;
+    setConfigPath(path, normalized);
+    syncPathInputs(path, normalized, target);
+    changed();
+  } else if (type === "number") {
+    if (target.value === "") {
+      target.value = getAt(getConfig(), path);
+      return;
+    }
+    let value = Number(target.value);
+    if (!Number.isFinite(value)) {
+      target.value = getAt(getConfig(), path);
+      return;
+    }
+    const min = target.min === "" ? null : Number(target.min);
+    const max = target.max === "" ? null : Number(target.max);
+    if (min != null) value = Math.max(min, value);
+    if (max != null) value = Math.min(max, value);
+    target.value = value;
+    setConfigPath(path, value);
+    syncPathInputs(path, value, target);
+    changed();
+  }
+}
+
+function changed() {
+  if (!state.config) return;
+  saveLocal();
+  draw();
+}
+
+function addPath(groupName) {
+  const group = getConfig()[groupName];
+  group.paths.push([0, 0, normalizeHex(group.baseColor)]);
+  renderPanel();
+  draw();
+  setStatus("Added a path point. Pick it on the screenshot to set its offset and color.");
+}
+
+function removePath(groupName, index) {
+  const group = getConfig()[groupName];
+  if (group.paths.length <= 1) {
+    setStatus("At least one path point is required.");
+    return;
+  }
+  group.paths.splice(index, 1);
+  state.selected = null;
+  saveLocal();
+  renderPanel();
+  draw();
+}
+
+function clearBase(groupName) {
+  delete state.basePoints[groupName];
+  saveBasePoints();
+  renderPanel();
+  draw();
+  setStatus("Cleared the base anchor for " + groupName + ".");
+}
+
+function autoScanRow(path) {
+  setConfigPath(path, 0);
+  state.selected = null;
+  saveLocal();
+  renderPanel();
+  draw();
+  setStatus((path === "minigame.mainScanY" ? "Main" : "Secondary") + " scan row set to automatic.");
+}
+
+function startPick(pick) {
+  if (!state.config) {
+    setStatus("Import a config JSON first.");
+    return;
+  }
+  if (!state.image) {
+    setStatus("Load a screenshot first.");
+    return;
+  }
+  state.pick = pick;
+  state.pending = null;
+  state.selected = null;
+  updateNudgeLabel();
+  updateHint();
+  draw();
+  setStatus("Click the screenshot to pick " + pick.label + ".");
+}
+
+function cancelPick() {
+  state.pick = null;
+  state.pending = null;
+  state.hover = null;
+  updateHint();
+  updateNudgeLabel();
+  draw();
+  setStatus("Pick cancelled.");
+}
+
+function finishPick(message) {
+  state.pick = null;
+  state.pending = null;
+  state.hover = null;
+  saveLocal();
+  renderPanel();
+  updateHint();
+  updateNudgeLabel();
+  draw();
+  setStatus(message);
+}
+
+function selectPoint(label, locate, nudge) {
+  state.selected = { label: label, locate: locate, nudge: nudge };
+  updateNudgeLabel();
+}
+
+function beginWidthPick(pick, point) {
+  state.pending = { x: point.x, y: point.y };
+  updateHint();
+  draw();
+  setStatus("Start point set at " + point.x + ", " + point.y + ". Click the end point.");
+}
+
+function applyWidthPick(pick, start, end) {
+  const width = Math.abs(end.x - start.x) + 1;
+  setConfigPath(pick.path, width);
+  selectPoint(
+    pick.label,
+    null,
+    dx => setConfigPath(pick.path, Math.max(1, getAt(getConfig(), pick.path) + dx))
+  );
+  finishPick(pick.label + " set to " + width + " px.");
+}
+
+function applyRectPick(pick, start, end) {
+  const x = Math.min(start.x, end.x);
+  const y = Math.min(start.y, end.y);
+  const width = Math.abs(end.x - start.x) + 1;
+  const height = Math.abs(end.y - start.y) + 1;
+  setConfigPath(pick.path, [x, y, width, height]);
+  finishPick(pick.label + " set to x=" + x + ", y=" + y + ", w=" + width + ", h=" + height + ".");
+}
+
+function applyBarRectPick(pick, start, end) {
+  const x = Math.min(start.x, end.x);
+  const y = Math.min(start.y, end.y);
+  const width = Math.abs(end.x - start.x) + 1;
+  const height = Math.abs(end.y - start.y) + 1;
+  setConfigPath("minigame.barX", x);
+  setConfigPath("minigame.barY", y);
+  setConfigPath("minigame.barWidth", width);
+  setConfigPath("minigame.barHeight", height);
+  finishPick("Bar area set to x=" + x + ", y=" + y + ", w=" + width + ", h=" + height + ".");
+}
+
+function onCanvasClick(event) {
+  if (!state.config) {
+    setStatus("Import a config JSON first.");
+    return;
+  }
+  const point = readImagePoint(event);
+  if (!point) return;
+  const pick = state.pick;
+  if (!pick) {
+    setStatus("Press a Pick button in the panel first, then click the screenshot.");
+    return;
+  }
+
+  if (pick.kind === "color") {
+    const color = sampleColor(point.x, point.y);
+    setConfigPath(pick.path, color);
+    if (pick.baseGroup) {
+      state.basePoints[pick.baseGroup] = { x: point.x, y: point.y };
+      saveBasePoints();
+    }
+    finishPick(pick.label + " set to " + color + (pick.baseGroup ? " (anchor " + point.x + ", " + point.y + ")" : "") + ".");
+    return;
+  }
+
+  if (pick.kind === "point") {
+    if (pick.xPath) setConfigPath(pick.xPath, point.x);
+    if (pick.yPath) setConfigPath(pick.yPath, point.y);
+    const xPath = pick.xPath;
+    const yPath = pick.yPath;
+    selectPoint(
+      pick.label,
+      () => ({
+        x: xPath ? getAt(getConfig(), xPath) : point.x,
+        y: yPath ? getAt(getConfig(), yPath) : point.y
+      }),
+      (dx, dy) => {
+        if (xPath) setConfigPath(xPath, getAt(getConfig(), xPath) + dx);
+        if (yPath) setConfigPath(yPath, getAt(getConfig(), yPath) + dy);
+      }
+    );
+    finishPick(pick.label + " set to " + point.x + ", " + point.y + ".");
+    return;
+  }
+
+  if (pick.kind === "base") {
+    const color = sampleColor(point.x, point.y);
+    state.basePoints[pick.group] = { x: point.x, y: point.y };
+    setConfigPath(pick.group + ".baseColor", color);
+    saveBasePoints();
+    finishPick("Base anchor for " + pick.group + " set to " + point.x + ", " + point.y + " (" + color + ").");
+    return;
+  }
+
+  if (pick.kind === "path") {
+    const base = getBase(pick.group);
+    if (!base) {
+      setStatus("Set the base anchor for " + pick.group + " first.");
+      cancelPick();
+      return;
+    }
+    const dx = point.x - base.x;
+    const dy = point.y - base.y;
+    const color = sampleColor(point.x, point.y);
+    setConfigPath(pick.group + ".paths." + pick.index, [dx, dy, color]);
+    selectPoint(
+      pick.label,
+      () => ({ x: base.x + getAt(getConfig(), pick.group + ".paths." + pick.index + ".0"), y: base.y + getAt(getConfig(), pick.group + ".paths." + pick.index + ".1") }),
+      (nudgeX, nudgeY) => {
+        const path = pick.group + ".paths." + pick.index;
+        const pair = getAt(getConfig(), path).slice();
+        pair[0] += nudgeX;
+        pair[1] += nudgeY;
+        setConfigPath(path, pair);
+      }
+    );
+    finishPick(pick.label + " set to offset " + dx + ", " + dy + " (" + color + ").");
+    return;
+  }
+
+  if (pick.kind === "width") {
+    if (!state.pending) {
+      beginWidthPick(pick, point);
+      return;
+    }
+    applyWidthPick(pick, state.pending, point);
+    return;
+  }
+
+  if (pick.kind === "rect") {
+    if (!state.pending) {
+      state.pending = { x: point.x, y: point.y };
+      updateHint();
+      draw();
+      setStatus("First corner set. Click the opposite corner.");
+      return;
+    }
+    applyRectPick(pick, state.pending, point);
+    return;
+  }
+
+  if (pick.kind === "barrect") {
+    if (!state.pending) {
+      state.pending = { x: point.x, y: point.y };
+      updateHint();
+      draw();
+      setStatus("First corner set. Click the opposite corner of the bar.");
+      return;
+    }
+    applyBarRectPick(pick, state.pending, point);
+    return;
+  }
+}
+
+function onPanelClick(event) {
+  const button = event.target.closest("button");
+  if (!button) return;
+
+  if (button.dataset.pick) {
+    const kind = button.dataset.pick;
+    if (kind === "color") {
+      startPick({ kind: "color", path: button.dataset.path, baseGroup: button.dataset.baseGroup || "", label: button.dataset.label || "color" });
+    } else if (kind === "point") {
+      startPick({ kind: "point", xPath: button.dataset.xpath || "", yPath: button.dataset.ypath || "", label: button.dataset.label || "position" });
+    } else if (kind === "width") {
+      startPick({ kind: "width", path: button.dataset.path, label: button.dataset.label || "width" });
+    } else if (kind === "rect") {
+      startPick({ kind: "rect", path: button.dataset.path, label: button.dataset.label || "area" });
+    } else if (kind === "barrect") {
+      startPick({ kind: "barrect", label: button.dataset.label || "bar area" });
+    } else if (kind === "base") {
+      startPick({ kind: "base", group: button.dataset.group, label: button.dataset.group + " base" });
+    } else if (kind === "path") {
+      startPick({ kind: "path", group: button.dataset.group, index: Number(button.dataset.index), label: button.dataset.label || "path point" });
+    }
+    return;
+  }
+
+  const action = button.dataset.action;
+  if (action === "import") {
+    $("#configFile").click();
+    return;
+  }
+  if (!state.config) return;
+  if (action === "add-path") addPath(button.dataset.group);
+  else if (action === "remove-path") removePath(button.dataset.group, Number(button.dataset.index));
+  else if (action === "clear-base") clearBase(button.dataset.group);
+  else if (action === "auto-scan") autoScanRow(button.dataset.path);
+}
+
+function onNudge(dx, dy) {
+  if (!state.selected || !state.selected.nudge) {
+    setStatus("Pick a position or width first, then use the arrow pad.");
+    return;
+  }
+  state.selected.nudge(dx, dy);
+  saveLocal();
+  const scrollTop = panel.scrollTop;
+  renderPanel();
+  panel.scrollTop = scrollTop;
+  updateHint();
+  draw();
+  setStatus("Nudged " + state.selected.label + " by " + (dx || dy) + " px.");
+}
+
+function updateNudgeLabel() {
+  const label = $("#nudgeLabel");
+  if (!label) return;
+  label.textContent = state.selected ? state.selected.label : "No position selected";
+}
+
+/* ------------------------------------------------------------------ */
+/* Canvas and overlays                                                 */
+/* ------------------------------------------------------------------ */
+
+function updateCanvasSize() {
+  if (!state.image) return;
+  const width = Math.max(1, Math.round(state.image.naturalWidth * state.zoom));
+  const height = Math.max(1, Math.round(state.image.naturalHeight * state.zoom));
+  canvas.style.width = width + "px";
+  canvas.style.height = height + "px";
+  canvas.classList.toggle("pixelated", state.zoom >= 2);
+  $("#zoomLabel").textContent = Math.round(state.zoom * 100) + "%";
+}
+
+function fit() {
+  if (!state.image) return;
+  const availableWidth = Math.max(80, viewport.clientWidth - 32);
+  const availableHeight = Math.max(80, viewport.clientHeight - 32);
+  const scale = Math.min(
+    availableWidth / state.image.naturalWidth,
+    availableHeight / state.image.naturalHeight,
+    1
+  );
+  state.zoom = clamp(scale, 0.02, 16);
+  state.fitMode = true;
+  updateCanvasSize();
+  viewport.scrollLeft = 0;
+  viewport.scrollTop = 0;
+  draw();
+}
+
+function zoomTo(nextZoom) {
+  if (!state.image) return;
+  const oldZoom = state.zoom;
+  const next = clamp(nextZoom, 0.02, 16);
+  if (Math.abs(next - oldZoom) < 0.0001) return;
+  const centerX = viewport.scrollLeft + viewport.clientWidth / 2;
+  const centerY = viewport.scrollTop + viewport.clientHeight / 2;
+  state.zoom = next;
+  state.fitMode = false;
+  updateCanvasSize();
+  viewport.scrollLeft = centerX * (next / oldZoom) - viewport.clientWidth / 2;
+  viewport.scrollTop = centerY * (next / oldZoom) - viewport.clientHeight / 2;
+  draw();
+}
+
+function draw() {
+  if (!state.image) {
+    canvas.width = 1;
+    canvas.height = 1;
+    return;
+  }
+  if (canvas.width !== state.image.naturalWidth) canvas.width = state.image.naturalWidth;
+  if (canvas.height !== state.image.naturalHeight) canvas.height = state.image.naturalHeight;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(state.image, 0, 0);
+  drawOverlays();
+}
+
+function drawOverlays() {
+  const config = getConfig();
+  if (!config) return;
+  const game = config.minigame;
+  const scale = 1 / state.zoom;
+  const line = Math.max(0.25, 1.5 * scale);
+  const mark = Math.max(1, 5 * scale);
+
+  ctx.save();
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+
+  // Money/level region.
+  const region = config.moneyLevel.region;
+  ctx.strokeStyle = "rgba(255, 209, 102, 0.9)";
+  ctx.fillStyle = "rgba(255, 209, 102, 0.12)";
+  ctx.lineWidth = line;
+  ctx.setLineDash([6 * scale, 4 * scale]);
+  ctx.fillRect(region[0], region[1], region[2], region[3]);
+  ctx.strokeRect(region[0], region[1], region[2], region[3]);
+  ctx.setLineDash([]);
+  drawLabel("money region", region[0], region[1] - 5 * scale, "#ffd166", scale);
+
+  drawPathGroup("moneyLevel", "#ffd166", scale, mark, line);
+  drawPathGroup("shake", "#4cc9f0", scale, mark, line);
+
+  // Bar rectangle.
+  const mainScanRowY = effectiveMainScanY(game);
+  const secondaryScanRowY = effectiveSecondaryScanY(game);
+  ctx.fillStyle = "rgba(99, 230, 166, 0.08)";
+  ctx.fillRect(game.barX, game.barY, game.barWidth, game.barHeight);
+  ctx.strokeStyle = "rgba(99, 230, 166, 0.95)";
+  ctx.lineWidth = Math.max(2, 3 * scale);
+  ctx.strokeRect(game.barX, game.barY, game.barWidth, game.barHeight);
+  drawLabel("bar " + game.barWidth + "×" + game.barHeight, game.barX, game.barY + game.barHeight + 5 * scale, "#63e6a6", scale);
+
+  // Scan rows, using the derived row when the override is 0.
+  ctx.setLineDash([5 * scale, 5 * scale]);
+  ctx.strokeStyle = "rgba(255, 209, 102, 0.9)";
+  ctx.lineWidth = line;
+  ctx.beginPath();
+  ctx.moveTo(game.barX - 12 * scale, mainScanRowY);
+  ctx.lineTo(game.barX + game.barWidth + 12 * scale, mainScanRowY);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(76, 201, 240, 0.9)";
+  ctx.beginPath();
+  ctx.moveTo(game.barX - 12 * scale, secondaryScanRowY);
+  ctx.lineTo(game.barX + game.barWidth + 12 * scale, secondaryScanRowY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  drawLabel((game.mainScanY ? "main scan" : "main scan auto") + " " + mainScanRowY, game.barX - 10 * scale, mainScanRowY - 5 * scale, "#ffd166", scale);
+  drawLabel((game.secondaryScanY ? "secondary scan" : "secondary scan auto") + " " + secondaryScanRowY, game.barX - 10 * scale, secondaryScanRowY + 13 * scale, "#4cc9f0", scale);
+
+  // Target zone and arrow width brackets around the bar.
+  const center = game.barX + game.barWidth / 2;
+  drawBracket(center - game.targetZone.width / 2, center + game.targetZone.width / 2, game.barY - 14 * scale, "target " + game.targetZone.width, "#ff9ff3", scale, line, -1);
+  drawBracket(center - game.arrow.width / 2, center + game.arrow.width / 2, game.barY + game.barHeight + 28 * scale, "arrow " + game.arrow.width, "#feca57", scale, line, 1);
+
+  // Hold position.
+  drawCross(config.control.holdX, config.control.holdY, "#ff5d73", scale, mark, line);
+  drawLabel("hold", config.control.holdX + 10 * scale, config.control.holdY - 10 * scale, "#ff5d73", scale);
+
+  // Current selection ring.
+  if (state.selected && state.selected.locate) {
+    const located = state.selected.locate();
+    if (located && Number.isFinite(located.x) && Number.isFinite(located.y)) {
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = Math.max(1, 2 * scale);
+      ctx.beginPath();
+      ctx.arc(located.x, located.y, 9 * scale, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // Pending two-click preview.
+  if (state.pending) {
+    drawCross(state.pending.x, state.pending.y, "#ffffff", scale, mark, line);
+    if (state.hover) {
+      ctx.setLineDash([4 * scale, 4 * scale]);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+      ctx.lineWidth = line;
+      ctx.beginPath();
+      ctx.moveTo(state.pending.x, state.pending.y);
+      ctx.lineTo(state.hover.x, state.hover.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      drawLabel(
+        Math.abs(state.hover.x - state.pending.x) + 1 + " px",
+        (state.pending.x + state.hover.x) / 2,
+        (state.pending.y + state.hover.y) / 2 - 6 * scale,
+        "#ffffff",
+        scale
+      );
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawPathGroup(groupName, color, scale, mark, line) {
+  const base = getBase(groupName);
+  if (!base) return;
+  const group = getConfig()[groupName];
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = line;
+
+  ctx.beginPath();
+  ctx.arc(base.x, base.y, mark, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(base.x - mark * 1.8, base.y);
+  ctx.lineTo(base.x + mark * 1.8, base.y);
+  ctx.moveTo(base.x, base.y - mark * 1.8);
+  ctx.lineTo(base.x, base.y + mark * 1.8);
+  ctx.stroke();
+  drawLabel(groupName + " anchor", base.x + 9 * scale, base.y - 9 * scale, color, scale);
+
+  group.paths.forEach((point, index) => {
+    const x = base.x + point[0];
+    const y = base.y + point[1];
+    ctx.fillRect(x - mark / 2, y - mark / 2, mark, mark);
+    ctx.strokeRect(x - mark, y - mark, mark * 2, mark * 2);
+    drawLabel(String(index + 1), x + mark + 3 * scale, y - mark, color, scale);
+  });
+}
+
+function drawCross(x, y, color, scale, mark, line) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(1, line);
+  ctx.beginPath();
+  ctx.arc(x, y, mark * 1.7, 0, Math.PI * 2);
+  ctx.moveTo(x - mark * 2.4, y);
+  ctx.lineTo(x + mark * 2.4, y);
+  ctx.moveTo(x, y - mark * 2.4);
+  ctx.lineTo(x, y + mark * 2.4);
+  ctx.stroke();
+}
+
+function drawBracket(x1, x2, y, label, color, scale, line, direction) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = line;
+  const tick = 6 * scale;
+  ctx.beginPath();
+  ctx.moveTo(x1, y);
+  ctx.lineTo(x1, y + tick * direction);
+  ctx.moveTo(x2, y);
+  ctx.lineTo(x2, y + tick * direction);
+  ctx.moveTo(x1, y);
+  ctx.lineTo(x2, y);
+  ctx.stroke();
+  drawLabel(label, (x1 + x2) / 2, y - 4 * scale * direction, color, scale);
+}
+
+function drawLabel(text, x, y, color, scale) {
+  const size = 11 * scale;
+  // Labels are rasterized in image space; hide them when zoomed in far enough
+  // that they would become huge blocks of pixels.
+  if (size < 6) return;
+  if (x < -20 || x > canvas.width + 20 || y < -size || y > canvas.height + size) return;
+  ctx.font = size + "px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.textBaseline = "bottom";
+  const width = ctx.measureText(text).width;
+  let left = x;
+  if (left + width > canvas.width - 4) left = canvas.width - width - 4;
+  if (left < 4) left = 4;
+  let top = y;
+  if (top < size + 4) top = size + 4;
+  if (top > canvas.height - 4) top = canvas.height - 4;
+  ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+  ctx.fillRect(left - 3 * scale, top - size - 2 * scale, width + 6 * scale, size + 4 * scale);
+  ctx.fillStyle = color;
+  ctx.fillText(text, left, top);
+}
+
+/* ------------------------------------------------------------------ */
+/* Static events and boot                                             */
+/* ------------------------------------------------------------------ */
+
+function onPointerMove(event) {
+  const point = readImagePoint(event);
+  if (!point) {
+    state.hover = null;
+    $("#cursorX").textContent = "—";
+    $("#cursorY").textContent = "—";
+    return;
+  }
+  state.hover = point;
+  $("#cursorX").textContent = point.x;
+  $("#cursorY").textContent = point.y;
+  const color = sampleColor(point.x, point.y);
+  $("#hoverSwatch").style.background = color;
+  $("#hoverHex").textContent = color;
+  if (state.pending) draw();
+}
+
+function onKeyDown(event) {
+  if (event.key === "Escape") {
+    if (state.pick) cancelPick();
+    return;
+  }
+  if (isTypingTarget(event.target)) return;
+  const step = Number($("#nudgeStep").value) || 1;
+  if (event.key === "ArrowLeft") { event.preventDefault(); onNudge(-step, 0); }
+  else if (event.key === "ArrowRight") { event.preventDefault(); onNudge(step, 0); }
+  else if (event.key === "ArrowUp") { event.preventDefault(); onNudge(0, -step); }
+  else if (event.key === "ArrowDown") { event.preventDefault(); onNudge(0, step); }
+}
+
+function bindStaticEvents() {
+  $("#imageFile").addEventListener("change", event => {
+    loadImageFile(event.target.files && event.target.files[0]);
+    event.target.value = "";
+  });
+  $("#configFile").addEventListener("change", event => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    file.text().then(text => {
+      try { loadConfigObject(JSON.parse(text), file.name); }
+      catch (error) { setStatus("Could not read " + file.name + ": " + error.message); }
+    });
+    event.target.value = "";
+  });
+  $("#downloadConfig").addEventListener("click", downloadConfig);
+  $("#resetConfig").addEventListener("click", () => {
+    if (!window.confirm("Replace all values with a blank configuration? Import default.json first if you want a ready-made setup.")) return;
+    state.config = clone(BLANK_CONFIG);
+    state.selected = null;
+    state.pick = null;
+    state.pending = null;
+    state.basePoints = {};
+    try { localStorage.removeItem(BASE_KEY); } catch (error) { /* ignore */ }
+    saveLocal();
+    renderPanel();
+    draw();
+    setStatus("Started from a blank configuration.");
+  });
+  panel.addEventListener("input", onPanelInput);
+  panel.addEventListener("change", onPanelChange);
+  panel.addEventListener("click", onPanelClick);
+  canvas.addEventListener("click", onCanvasClick);
+  canvas.addEventListener("pointermove", onPointerMove);
+  canvas.addEventListener("pointerleave", () => {
+    state.hover = null;
+    $("#cursorX").textContent = "—";
+    $("#cursorY").textContent = "—";
+  });
+  $("#zoomIn").addEventListener("click", () => zoomTo(state.zoom * 1.5));
+  $("#zoomOut").addEventListener("click", () => zoomTo(state.zoom / 1.5));
+  $("#zoomFit").addEventListener("click", fit);
+  $("#zoomOne").addEventListener("click", () => zoomTo(1));
+  document.querySelectorAll("[data-dir]").forEach(button => {
+    button.addEventListener("click", () => {
+      const step = Number($("#nudgeStep").value) || 1;
+      const dir = button.dataset.dir;
+      onNudge(dir === "left" ? -step : dir === "right" ? step : 0, dir === "up" ? -step : dir === "down" ? step : 0);
+    });
+  });
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("resize", () => { if (state.fitMode) fit(); });
+  viewport.addEventListener("wheel", event => {
+    if (!event.ctrlKey && !event.metaKey) return;
+    event.preventDefault();
+    zoomTo(state.zoom * (event.deltaY < 0 ? 1.15 : 1 / 1.15));
+  }, { passive: false });
+
+  viewport.addEventListener("dragover", event => {
+    event.preventDefault();
+    viewport.classList.add("dragging");
+  });
+  viewport.addEventListener("dragleave", () => viewport.classList.remove("dragging"));
+  viewport.addEventListener("drop", event => {
+    event.preventDefault();
+    viewport.classList.remove("dragging");
+    const file = event.dataTransfer.files && event.dataTransfer.files[0];
+    loadImageFile(file);
+  });
+}
+
+function boot() {
+  bindStaticEvents();
+  try { LEGACY_KEYS.forEach(key => localStorage.removeItem(key)); } catch (error) { /* ignore */ }
+  restoreBasePoints();
+
+  state.config = clone(BLANK_CONFIG);
+  let loaded = null;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) loaded = JSON.parse(stored);
+  } catch (error) { /* ignore */ }
+
+  if (loaded) {
+    try {
+      state.config = normalizeConfig(loaded);
+      setStatus("Restored this browser’s saved settings.");
+    } catch (error) {
+      try { localStorage.removeItem(STORAGE_KEY); } catch (ignored) { /* ignore */ }
+      setStatus("Saved draft was invalid; started from a blank configuration.");
+    }
+  } else {
+    setStatus("Blank configuration. Import default.json for a ready-made setup, or start picking values.");
+  }
+
+  renderPanel();
+  updateHint();
+  draw();
+}
+
+boot();
+</script>
+</body>
+</html>

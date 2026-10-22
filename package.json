@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "check": "node tools/check-config.js"
+  },
   "devDependencies": {
     "@sm003/autojs6-dts": "^4.24.1"
   }
