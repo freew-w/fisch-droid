@@ -344,9 +344,8 @@ console.show()
 // ============================================================
 var mainScanRow = util.java.array("int", BAR_W)
 var secondaryScanRow = util.java.array("int", BAR_W)
-
 var minigameStartedAt = 0
-var initEstimator = false
+var isNewMinigame = true
 
 while (true) {
     // ============================================================
@@ -360,15 +359,15 @@ while (true) {
     try {
         var isInFishingMinigame = images.findPointByColors(img, MONEY_LEVEL_BASE_COLOR, MONEY_LEVEL_PATHS, MONEY_LEVEL_OPTIONS) === null
         if (!isInFishingMinigame) {
-            initEstimator = false
+            isNewMinigame = true
             // Shake
             var shake = images.findPointByColors(img, SHAKE_BASE_COLOR, SHAKE_PATHS, SHAKE_OPTIONS)
             if (shake)
                 click(shake.x, shake.y)
             sleep(30)
         } else {
-            if (initEstimator) {
-                initEstimator = true
+            if (isNewMinigame) {
+                isNewMinigame = false
                 minigameStartedAt = Date.now()
                 resetEstimator()
             }
