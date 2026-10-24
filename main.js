@@ -251,6 +251,12 @@ function noteOverhead(now) {
         overheadMs = overheadMs * 0.8 + measured * 0.2
 }
 
+function leftWallImpactIsImminent(barX, barV) {
+    var secondsBeforeImpact = barV < 0 ? (BAR_W_HALF - barX) / (barV) : Infinity
+    var horizon = (PRESS_LATENCY_MS + 50) / 1000 // extra time for slack
+    return secondsBeforeImpact < horizon
+}
+
 function runControl(now, barPosition, fishPosition) {
     if (!updateEstimator(now, barPosition, fishPosition, true))
         return
@@ -260,6 +266,8 @@ function runControl(now, barPosition, fishPosition) {
     var error = estimatedBarX - estimatedFishX
     var velocity = estimatedBarV - estimatedFishV
     var choice = choosePulse(error, velocity)
+    if (leftWallImpactIsImminent(estimatedBarX, estimatedBarV))
+        choice = { hold: false, durationMs: 0, cost: Infinity }
     if (!choice)
         return
 
