@@ -366,6 +366,53 @@ var winEstFish = floaty.rawWindow(
 winEstFish.setTouchable(false)
 winEstFish.setPosition(-500, -500)
 
+// ============================================================
+// Pause/resume toggle
+// ============================================================
+var winToggle = floaty.rawWindow(
+    <frame>
+        <text id="toggle" text="OFF" w="60" h="38" textSize="12sp" textColor="#ffff8a80" bg="#cc263238" gravity="center" />
+    </frame>
+)
+winToggle.setTouchable(true)
+
+var running = false
+var toggleView = winToggle.findView("toggle")
+var toggleDownRawX = 0
+var toggleDownRawY = 0
+var toggleWinX = 0
+var toggleWinY = 0
+var toggleDragged = false
+
+ui.run(function () {
+    toggleView.setOnTouchListener(function (view, event) {
+        var action = event.getAction()
+        if (action === event.ACTION_DOWN) {
+            toggleDownRawX = event.getRawX()
+            toggleDownRawY = event.getRawY()
+            toggleWinX = winToggle.getX()
+            toggleWinY = winToggle.getY()
+            toggleDragged = false
+        } else if (action === event.ACTION_MOVE) {
+            var dx = event.getRawX() - toggleDownRawX
+            var dy = event.getRawY() - toggleDownRawY
+            if (!toggleDragged && Math.abs(dx) + Math.abs(dy) > 12)
+                toggleDragged = true
+            if (toggleDragged)
+                winToggle.setPosition(Math.round(toggleWinX + dx), Math.round(toggleWinY + dy))
+        } else if (action === event.ACTION_UP) {
+            if (!toggleDragged) {
+                running = !running
+                if (running)
+                    isNewMinigame = true
+                toggleView.setText(running ? "ON" : "OFF")
+                toggleView.setTextColor(android.graphics.Color.parseColor(running ? "#ff7cf57c" : "#ffff8a80"))
+            }
+        }
+        return true
+    })
+})
+
 if (!requestScreenCapture(true)) {
     toasterror("Screen capture permission denied.")
     exit()
@@ -380,6 +427,11 @@ var minigameStartedAt = 0
 var isNewMinigame = true
 
 while (true) {
+    if (!running) {
+        sleep(100)
+        continue
+    }
+
     // ============================================================
     // Detection
     // ============================================================
