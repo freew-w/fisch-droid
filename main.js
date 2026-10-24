@@ -230,13 +230,15 @@ function updateEstimator(now, barPosition, fishPosition, adapt) {
     estimatedFishX = predictedFish + EST_ALPHA * fishResidual
     estimatedFishV = estimatedFishV + (EST_BETA / dt) * fishResidual
 
+    // mark(winEstBar, estimatedBarX)
+    // mark(winEstFish, estimatedFishX)
+
     if (adapt) {
         var dv = estimatedBarV - previousBarV
-        if (holdSeconds >= 0.03) {
+        if (holdSeconds >= 0.03)
             accelHold = adaptAccel(accelHold, (dv + accelRelease * releaseSeconds) / holdSeconds)
-        } else if (holdSeconds === 0) {
+        else if (holdSeconds === 0)
             accelRelease = adaptAccel(accelRelease, -dv / dt)
-        }
     }
 
     lastSampleMs = now
@@ -347,6 +349,22 @@ var winBar = floaty.rawWindow(
 )
 winBar.setTouchable(false)
 winBar.setPosition(-500, -500)
+
+var winEstBar = floaty.rawWindow(
+    <frame>
+        <text text="e" textColor="#38fc02" gravity="center" />
+    </frame>
+)
+winEstBar.setTouchable(false)
+winEstBar.setPosition(-500, -500)
+
+var winEstFish = floaty.rawWindow(
+    <frame>
+        <text text="l" textColor="#38fc02" gravity="center" />
+    </frame>
+)
+winEstFish.setTouchable(false)
+winEstFish.setPosition(-500, -500)
 
 if (!requestScreenCapture(true)) {
     toasterror("Screen capture permission denied.")
