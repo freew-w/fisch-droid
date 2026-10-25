@@ -2,20 +2,53 @@
   "coins": {
     "baseColor": "#fffde4",
     "paths": [
-      [-13, -10, "#fffde4"],
-      [-1, 12, "#fffde4"],
-      [-120, -45, "#ffdcac"]
+      [
+        -13,
+        -10,
+        "#fffde4"
+      ],
+      [
+        -1,
+        12,
+        "#fffde4"
+      ],
+      [
+        -120,
+        -45,
+        "#ffdcac"
+      ]
     ],
-    "region": [1805, 907, 76, 88],
+    "region": [
+      1805,
+      907,
+      76,
+      88
+    ],
     "threshold": 20
   },
   "shake": {
     "baseColor": "#ffffff",
     "paths": [
-      [-39, -13, "#ebebeb"],
-      [-14, 5, "#ffffff"],
-      [24, -12, "#fefefe"],
-      [41, 8, "#ffffff"]
+      [
+        -39,
+        -13,
+        "#ebebeb"
+      ],
+      [
+        -14,
+        5,
+        "#ffffff"
+      ],
+      [
+        24,
+        -12,
+        "#fefefe"
+      ],
+      [
+        41,
+        8,
+        "#ffffff"
+      ]
     ],
     "threshold": 20
   },
@@ -27,10 +60,10 @@
     "mainScanY": 0,
     "secondaryScanY": 0,
     "arrow": {
-      "width": 28,
       "color": "#828688",
       "threshold": 20,
-      "releasedMaxHitOffset": 9
+      "releasedMaxHitOffset": 9,
+      "width": 28
     },
     "bar": {
       "width": 343,
@@ -43,19 +76,34 @@
     }
   },
   "control": {
-    "holdX": 0,
-    "holdY": 0,
-    "holdMinMs": 30,
-    "holdMaxMs": 320,
-    "releaseMinMs": 0,
-    "releaseMaxMs": 100,
-    "pressLatencyMs": 12,
-    "holdAccelPxPerSec2": 900,
-    "releaseAccelPxPerSec2": 700,
-    "velocityCostMs": 180,
-    "deadbandPx": 15,
-    "accelAdaptPercent": 10,
-    "holdPenaltyPerMs": 0.05,
-    "minigameLockMs": 1400
+    "controller": {
+      "holdX": 0,
+      "holdY": 0,
+      "holdMinMs": 30,
+      "holdMaxMs": 320,
+      "releaseMinMs": 0,
+      "releaseMaxMs": 100,
+      "pressLatencyMs": 12,
+      "velocityCostMs": 180,
+      "deadbandPx": 15,
+      "holdPenaltyPerMs": 0.05,
+      "minigameLockMs": 1400
+    },
+    "estimator": {
+      "holdAccelPxPerSec2": 900,
+      "releaseAccelPxPerSec2": 700,
+      "accelAdaptPercent": 10,
+      "defaultOverheadMs": 80,
+      "lookAheadMs": 500,
+      "pulseStepMs": 5,
+      "simStepMs": 5,
+      "wallBouncePercent": 50,
+      "minWallBounceSpeed": 20,
+      "minBrakeSpeed": 80,
+      "minAccel": 100,
+      "maxAccel": 2000,
+      "estAlpha": 0.7,
+      "estBeta": 0.35
+    }
   }
 }
