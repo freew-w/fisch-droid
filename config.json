@@ -1,6 +1,5 @@
 {
-  "version": 2,
-  "moneyLevel": {
+  "coins": {
     "baseColor": "#fffde4",
     "paths": [
       [-13, -10, "#fffde4"],
@@ -21,10 +20,10 @@
     "threshold": 20
   },
   "minigame": {
-    "barX": 565,
-    "barY": 843,
-    "barWidth": 762,
-    "barHeight": 26,
+    "trackX": 565,
+    "trackY": 843,
+    "trackWidth": 762,
+    "trackHeight": 26,
     "mainScanY": 857,
     "secondaryScanY": 850,
     "arrow": {
@@ -33,12 +32,12 @@
       "threshold": 20,
       "releasedMaxHitOffset": 9
     },
-    "targetZone": {
+    "bar": {
       "width": 343,
       "leftOffsetWhenReleased": 22,
       "leftOffsetWhenHolding": 294
     },
-    "indicator": {
+    "line": {
       "color": "#434b5b",
       "threshold": 10
     }
@@ -57,6 +56,6 @@
     "deadbandPx": 15,
     "accelAdaptPercent": 10,
     "holdPenaltyPerMs": 0.05,
-    "minigameLockMs": 1200
+    "minigameLockMs": 1400
   }
 }

@@ -53,7 +53,7 @@ var REQUIRED_CONTROL_KEYS = [
 ]
 
 function buildConfig(raw) {
-    if (!raw || typeof raw !== "object" || !raw.moneyLevel || !raw.shake || !raw.minigame || !raw.control)
+    if (!raw || typeof raw !== "object" || !raw.coins || !raw.shake || !raw.minigame || !raw.control)
         fail("config.json is missing required sections")
 
     var i
@@ -70,12 +70,12 @@ function buildConfig(raw) {
     var secondaryScanY = minigame.secondaryScanY ? minigame.secondaryScanY : mainScanY - 7
 
     var built = {
-        moneyLevel: {
-            baseColor: raw.moneyLevel.baseColor,
-            paths: raw.moneyLevel.paths,
+        coins: {
+            baseColor: raw.coins.baseColor,
+            paths: raw.coins.paths,
             options: {
-                region: raw.moneyLevel.region,
-                threshold: raw.moneyLevel.threshold
+                region: raw.coins.region,
+                threshold: raw.coins.threshold
             }
         },
         shake: {
@@ -121,7 +121,7 @@ function buildConfig(raw) {
     }
 
     if (Object.freeze) {
-        var nested = ["moneyLevel", "shake", "arrow", "bar", "line", "control"]
+        var nested = ["coins", "shake", "arrow", "bar", "line", "control"]
         for (i = 0; i < nested.length; i++)
             Object.freeze(built[nested[i]])
         Object.freeze(built)
@@ -149,9 +149,9 @@ function createDetector(cfg) {
     function isMinigame(img) {
         return images.findPointByColors(
             img,
-            cfg.moneyLevel.baseColor,
-            cfg.moneyLevel.paths,
-            cfg.moneyLevel.options
+            cfg.coins.baseColor,
+            cfg.coins.paths,
+            cfg.coins.options
         ) === null
     }
 
