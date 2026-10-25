@@ -1,12 +1,21 @@
 var CONFIG_PATH = "./config.json"
 
+var HIDDEN_WINDOW_POSITION = -500
+
+// Controller
+var DEFAULT_OVERHEAD_MS = 80
+var LOOKAHEAD_MS = 500
 var PULSE_STEP_MS = 5
-var ACCEL_MIN = 50
-var ACCEL_MAX = 5000
+var SIM_STEP_MS = 5
+var WALL_BOUNCE_PERCENT = 50
+var MIN_WALL_BOUNCE_SPEED = 20
+var MIN_BRAKE_SPEED = 80
+
+// Estimator
+var ACCEL_MIN = 100
+var ACCEL_MAX = 2000
 var EST_ALPHA = 0.7
 var EST_BETA = 0.35
-var DEFAULT_OVERHEAD_MS = 30
-var HIDDEN_WINDOW_POSITION = -500
 
 // ============================================================
 // Helpers
@@ -215,6 +224,17 @@ function createControlState(cfg) {
 function createController(cfg) {
     var state = createControlState(cfg)
 
+    var minBarX = cfg.bar.halfWidth
+    var maxBarX = cfg.trackWidth - cfg.bar.halfWidth
+    if (maxBarX < minBarX)
+        maxBarX = minBarX
+    var wallBounce = WALL_BOUNCE_PERCENT / 100
+    if (wallBounce < 0)
+        wallBounce = 0
+    else if (wallBounce > 1)
+        wallBounce = 1
+    var simStep = SIM_STEP_MS / 1000
+
     function clamp(value, min, max) {
         return value < min ? min : (value > max ? max : value)
     }
@@ -224,46 +244,168 @@ function createController(cfg) {
         return current + (observed - current) * cfg.control.accelAdapt
     }
 
-    function predictPulse(error, velocity, durationMs, isHold) {
+    function advanceBar(bar, accel, seconds) {
+        var remaining = seconds
+        while (remaining > 0) {
+            var dt = remaining < simStep ? remaining : simStep
+
+            bar.x += bar.v * dt + 0.5 * accel * dt * dt
+            bar.v += accel * dt
+
+            if (bar.x <= minBarX) {
+                bar.x = minBarX
+                bar.contact = true
+                if (bar.v < -MIN_WALL_BOUNCE_SPEED) {
+                    bar.v = -bar.v * wallBounce
+                    bar.impacts++
+                } else if (bar.v < 0) {
+                    bar.v = 0
+                }
+            } else if (bar.x >= maxBarX) {
+                bar.x = maxBarX
+                bar.contact = true
+                if (bar.v > MIN_WALL_BOUNCE_SPEED) {
+                    bar.v = -bar.v * wallBounce
+                    bar.impacts++
+                } else if (bar.v > 0) {
+                    bar.v = 0
+                }
+            }
+
+            remaining -= dt
+        }
+    }
+
+    function advancePair(bar, fish, accel, seconds) {
+        advanceBar(bar, accel, seconds)
+        fish.x += fish.v * seconds
+    }
+
+    function brakePhase(bar, fish, seconds) {
+        var remaining = seconds
+        while (remaining > 0) {
+            var relativeV = bar.v - fish.v
+            var accel = 0
+            if (relativeV < -MIN_BRAKE_SPEED)
+                accel = state.accelHold
+            else if (relativeV > MIN_BRAKE_SPEED)
+                accel = -state.accelRelease
+
+            if (accel === 0) {
+                var coastStep = remaining < simStep ? remaining : simStep
+                advancePair(bar, fish, 0, coastStep)
+                remaining -= coastStep
+                continue
+            }
+
+            var timeToZero = Math.abs(relativeV) / Math.abs(accel)
+            var dt = remaining < timeToZero ? remaining : timeToZero
+            if (dt < 0.000001)
+                dt = remaining < simStep ? remaining : simStep
+            advancePair(bar, fish, accel, dt)
+            remaining -= dt
+        }
+    }
+
+    function simulateCandidate(barX, barV, fishX, fishV, durationMs, isHold, horizon) {
+        var bar = { x: barX, v: barV, impacts: 0, contact: false }
+        var fish = { x: fishX, v: fishV }
         var latency = cfg.control.pressLatencyMs / 1000
         var overhead = state.overheadMs / 1000
         var duration = durationMs / 1000
+        var elapsed = 0
 
         if (isHold) {
-            error += velocity * latency - 0.5 * state.accelRelease * latency * latency
-            velocity -= state.accelRelease * latency
-            error += velocity * duration + 0.5 * state.accelHold * duration * duration
-            velocity += state.accelHold * duration
-            error += velocity * overhead - 0.5 * state.accelRelease * overhead * overhead
-            velocity -= state.accelRelease * overhead
+            advancePair(bar, fish, -state.accelRelease, latency)
+            elapsed += latency
+            advancePair(bar, fish, state.accelHold, duration)
+            elapsed += duration
         } else {
-            var total = duration + overhead
-            error += velocity * total - 0.5 * state.accelRelease * total * total
-            velocity -= state.accelRelease * total
+            advancePair(bar, fish, -state.accelRelease, duration)
+            elapsed += duration
         }
-        return [error, velocity]
+
+        advancePair(bar, fish, -state.accelRelease, overhead)
+        elapsed += overhead
+
+        var remaining = horizon - elapsed
+        if (remaining > 0)
+            brakePhase(bar, fish, remaining)
+
+        return {
+            error: bar.x - fish.x,
+            velocity: bar.v - fish.v,
+            impacts: bar.impacts,
+            contact: bar.contact
+        }
     }
 
-    function considerPulse(best, error, velocity, durationMs, isHold) {
-        var predicted = predictPulse(error, velocity, durationMs, isHold)
-        var outside = Math.max(0, Math.abs(predicted[0]) - cfg.control.deadbandPx)
-        var velocityCost = predicted[1] * cfg.control.velocityCostS
+    function considerCandidate(best, predicted, durationMs, isHold) {
+        var outside = Math.max(0, Math.abs(predicted.error) - cfg.control.deadbandPx)
+        var velocityCost = predicted.velocity * cfg.control.velocityCostS
         var cost = outside * outside + velocityCost * velocityCost
         if (isHold)
             cost += cfg.control.holdPenaltyPerMs * durationMs
         if (!best || cost < best.cost)
-            return { hold: isHold, durationMs: durationMs, cost: cost }
+            return { hold: isHold, durationMs: durationMs, cost: cost, impacts: predicted.impacts }
         return best
     }
 
-    function choosePulse(error, velocity) {
+    function choosePulse() {
+        var maxActionSeconds = Math.max(
+            (cfg.control.holdMaxMs + cfg.control.pressLatencyMs) / 1000,
+            cfg.control.releaseMaxMs / 1000
+        ) + state.overheadMs / 1000
+        var horizon = Math.max(LOOKAHEAD_MS / 1000, maxActionSeconds)
+
         var best = null
         var t
-        for (t = cfg.control.releaseMinMs; t <= cfg.control.releaseMaxMs; t += PULSE_STEP_MS)
-            best = considerPulse(best, error, velocity, t, false)
-        for (t = cfg.control.holdMinMs; t <= cfg.control.holdMaxMs; t += PULSE_STEP_MS)
-            best = considerPulse(best, error, velocity, t, true)
+        for (t = cfg.control.releaseMinMs; t <= cfg.control.releaseMaxMs; t += PULSE_STEP_MS) {
+            var predictedRelease = simulateCandidate(
+                state.barX, state.barV, state.fishX, state.fishV, t, false, horizon
+            )
+            best = considerCandidate(best, predictedRelease, t, false)
+        }
+        for (t = cfg.control.holdMinMs; t <= cfg.control.holdMaxMs; t += PULSE_STEP_MS) {
+            var predictedHold = simulateCandidate(
+                state.barX, state.barV, state.fishX, state.fishV, t, true, horizon
+            )
+            best = considerCandidate(best, predictedHold, t, true)
+        }
         return best
+    }
+
+    function predictBarInterval(x, v, dt, action) {
+        var bar = { x: x, v: v, impacts: 0, contact: false }
+        var holdSeconds = 0
+        var elapsed = 0
+
+        if (action && action.hold) {
+            var latency = cfg.control.pressLatencyMs / 1000
+            var latencySeconds = latency < dt ? latency : dt
+            advanceBar(bar, -state.accelRelease, latencySeconds)
+            elapsed += latencySeconds
+
+            if (elapsed < dt) {
+                var wantedHold = action.durationMs / 1000
+                holdSeconds = wantedHold < dt - elapsed ? wantedHold : dt - elapsed
+                advanceBar(bar, state.accelHold, holdSeconds)
+                elapsed += holdSeconds
+            }
+
+            if (elapsed < dt)
+                advanceBar(bar, -state.accelRelease, dt - elapsed)
+        } else {
+            advanceBar(bar, -state.accelRelease, dt)
+        }
+
+        return {
+            x: bar.x,
+            v: bar.v,
+            impacts: bar.impacts,
+            contact: bar.contact,
+            holdSeconds: holdSeconds
+        }
     }
 
     function update(now, barPosition, fishPosition, adapt) {
@@ -288,30 +430,29 @@ function createController(cfg) {
         }
 
         var dt = dtms / 1000
-        var holdSeconds = 0
-        if (state.lastAction && state.lastAction.hold)
-            holdSeconds = Math.min(state.lastAction.durationMs, dtms) / 1000
-        var releaseSeconds = dt - holdSeconds
-
-        var averageAccel = state.accelHold * (holdSeconds / dt) - state.accelRelease * (releaseSeconds / dt)
-
         var previousBarV = state.barV
-        var predictedBar = state.barX + state.barV * dt + 0.5 * averageAccel * dt * dt
-        var predictedBarV = state.barV + averageAccel * dt
-        var barResidual = barPosition - predictedBar
-        state.barX = predictedBar + EST_ALPHA * barResidual
-        state.barV = predictedBarV + (EST_BETA / dt) * barResidual
+        var barPrediction = predictBarInterval(state.barX, state.barV, dt, state.lastAction)
+
+        var barResidual = barPosition - barPrediction.x
+        state.barX = barPrediction.x + EST_ALPHA * barResidual
+        state.barX = clamp(state.barX, minBarX, maxBarX)
+        state.barV = barPrediction.v + (EST_BETA / dt) * barResidual
 
         var predictedFish = state.fishX + state.fishV * dt
         var fishResidual = fishPosition - predictedFish
         state.fishX = predictedFish + EST_ALPHA * fishResidual
         state.fishV = state.fishV + (EST_BETA / dt) * fishResidual
 
-        if (adapt) {
+        if (adapt && !barPrediction.contact &&
+            state.barX > minBarX + 0.5 && state.barX < maxBarX - 0.5) {
             var dv = state.barV - previousBarV
-            if (holdSeconds >= 0.03)
-                state.accelHold = adaptAccel(state.accelHold, (dv + state.accelRelease * releaseSeconds) / holdSeconds)
-            else if (holdSeconds === 0)
+            var releaseSeconds = dt - barPrediction.holdSeconds
+            if (barPrediction.holdSeconds >= 0.03)
+                state.accelHold = adaptAccel(
+                    state.accelHold,
+                    (dv + state.accelRelease * releaseSeconds) / barPrediction.holdSeconds
+                )
+            else if (barPrediction.holdSeconds === 0)
                 state.accelRelease = adaptAccel(state.accelRelease, -dv / dt)
         }
 
@@ -327,12 +468,6 @@ function createController(cfg) {
             state.overheadMs = state.overheadMs * 0.8 + measured * 0.2
     }
 
-    function leftWallImpactIsImminent(barX, barV) {
-        var secondsBeforeImpact = barV < 0 ? (cfg.bar.halfWidth - barX) / barV : Infinity
-        var horizon = (cfg.control.pressLatencyMs + 50) / 1000 // extra time for slack
-        return secondsBeforeImpact < horizon
-    }
-
     function step(now, barPosition, fishPosition) {
         if (!update(now, barPosition, fishPosition, true))
             return
@@ -341,9 +476,7 @@ function createController(cfg) {
 
         var error = state.barX - state.fishX
         var velocity = state.barV - state.fishV
-        var choice = choosePulse(error, velocity)
-        if (leftWallImpactIsImminent(state.barX, state.barV))
-            choice = { hold: false, durationMs: 0, cost: Infinity }
+        var choice = choosePulse()
         if (!choice)
             return
 
@@ -360,7 +493,8 @@ function createController(cfg) {
             " vel=" + Math.round(velocity) +
             " aH=" + Math.round(state.accelHold) +
             " aR=" + Math.round(state.accelRelease) +
-            " overhead=" + Math.round(state.overheadMs))
+            " overhead=" + Math.round(state.overheadMs) +
+            " wall=" + choice.impacts)
     }
 
     function reset() {
@@ -507,10 +641,10 @@ function run(cfg, detector, controller, markers, toggle) {
                 var now = Date.now()
                 var positions = detector.findLineAndBar(img)
                 if (positions.lineCenterX !== -1 && positions.barCenterX !== -1) {
-                    markers.move(markers.line, positions.lineCenterX)
-                    markers.move(markers.bar, positions.barCenterX)
-                    // markers.move(markers.estBar, controller.snapshot().barX)
-                    // markers.move(markers.estFish, controller.snapshot().fishX)
+                    // markers.move(markers.line, positions.lineCenterX)
+                    // markers.move(markers.bar, positions.barCenterX)
+                    markers.move(markers.estBar, controller.snapshot().barX)
+                    markers.move(markers.estFish, controller.snapshot().fishX)
 
                     if (now - minigameStartedAt < cfg.control.minigameLockMs)
                         controller.update(now, positions.barCenterX, positions.lineCenterX, false)
