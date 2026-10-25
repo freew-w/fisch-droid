@@ -24,8 +24,8 @@
     "trackY": 843,
     "trackWidth": 762,
     "trackHeight": 26,
-    "mainScanY": 857,
-    "secondaryScanY": 850,
+    "mainScanY": 0,
+    "secondaryScanY": 0,
     "arrow": {
       "width": 28,
       "color": "#828688",
@@ -43,8 +43,8 @@
     }
   },
   "control": {
-    "holdX": 1446,
-    "holdY": 600,
+    "holdX": 0,
+    "holdY": 0,
     "holdMinMs": 30,
     "holdMaxMs": 320,
     "releaseMinMs": 0,

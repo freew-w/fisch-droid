@@ -66,8 +66,11 @@ function buildConfig(raw) {
     var minigame = raw.minigame
     var control = raw.control
 
+    // Auto infer fields
     var mainScanY = minigame.mainScanY ? minigame.mainScanY : minigame.trackY + Math.floor(minigame.trackHeight / 2) + 1
     var secondaryScanY = minigame.secondaryScanY ? minigame.secondaryScanY : mainScanY - 7
+    var holdX = control.holdX ? control.holdX : device.width / 2
+    var holdY = control.holdY ? control.holdY : device.height / 2
 
     var built = {
         coins: {
@@ -103,8 +106,8 @@ function buildConfig(raw) {
             threshold: minigame.line.threshold
         },
         control: {
-            holdX: control.holdX,
-            holdY: control.holdY,
+            holdX: holdX,
+            holdY: holdY,
             holdMinMs: control.holdMinMs,
             holdMaxMs: control.holdMaxMs,
             releaseMinMs: control.releaseMinMs,
