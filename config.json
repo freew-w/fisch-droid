@@ -1,4 +1,8 @@
 {
+  "cast": {
+    "reCastAfterNoDetectionForMs": 3000,
+    "holdMs": 300
+  },
   "coins": {
     "baseColor": "#fffde4",
     "paths": [

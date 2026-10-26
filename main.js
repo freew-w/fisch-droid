@@ -33,6 +33,9 @@ function pixelHexColorInRgbRange(pixel, range, threshold) {
 // ============================================================
 function createConfig() {
     var SCHEMA = {
+        "cast.reCastAfterNoDetectionForMs": { type: "number", min: 0 },
+        "cast.holdMs": { type: "number", min: 0 },
+
         "coins.baseColor": { type: "hexColor" },
         "coins.paths": { type: "array" },
         "coins.region": { type: "numberArray", len: 4 },
@@ -657,14 +660,33 @@ function createToggle() {
 // ============================================================
 // Main loop
 // ============================================================
+function cast(cfg) {
+    press(cfg.derived.holdX, cfg.derived.holdY, cfg.cast.holdMs)
+}
+
 function run(cfg, detector, controller, markers, toggle) {
     var minigameStartedAt = 0
     var isNewMinigame = true
+    var isNewMacroLoop = true
+    var lastDetectionAt = 0
 
     while (true) {
         if (!toggle.isRunning()) {
+            isNewMacroLoop = true
             sleep(100)
             continue
+        }
+
+        if (isNewMacroLoop) {
+            isNewMacroLoop = false
+            sleep(500)
+            cast(cfg)
+        }
+
+        var now = Date.now()
+        if (now - lastDetectionAt > cfg.cast.reCastAfterNoDetectionForMs) {
+            cast(cfg)
+            lastDetectionAt = now
         }
 
         var img = captureScreen()
@@ -674,8 +696,10 @@ function run(cfg, detector, controller, markers, toggle) {
                 isNewMinigame = true
 
                 var shake = detector.findShake(img)
-                if (shake)
+                if (shake) {
+                    lastDetectionAt = now
                     click(shake.x, shake.y)
+                }
                 sleep(30)
             } else {
                 if (isNewMinigame) {
@@ -684,9 +708,10 @@ function run(cfg, detector, controller, markers, toggle) {
                     controller.reset()
                 }
 
-                var now = Date.now()
                 var positions = detector.findLineAndBar(img)
                 if (positions.lineCenterX !== -1 && positions.barCenterX !== -1) {
+                    lastDetectionAt = now
+
                     markers.move(markers.line, positions.lineCenterX)
                     markers.move(markers.bar, positions.barCenterX)
                     markers.move(markers.estBar, controller.snapshot().barX)
