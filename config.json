@@ -1,4 +1,7 @@
 {
+  "debug": {
+    "showMarkers": true
+  },
   "cast": {
     "reCastAfterNoDetectionForMs": 3000,
     "holdMs": 300

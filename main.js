@@ -33,6 +33,8 @@ function pixelHexColorInRgbRange(pixel, range, threshold) {
 // ============================================================
 function createConfig() {
     var SCHEMA = {
+        "debug.showMarkers": { type: "boolean" },
+
         "cast.reCastAfterNoDetectionForMs": { type: "number", min: 0 },
         "cast.holdMs": { type: "number", min: 0 },
 
@@ -115,6 +117,11 @@ function createConfig() {
                 return value + " is below min " + spec.min
             if (spec.max !== undefined && value > spec.max)
                 return value + " is above max " + spec.max
+            return null
+        }
+        if (spec.type === "boolean") {
+            if (typeof value !== "boolean")
+                return "expected a boolean, got " + JSON.stringify(value)
             return null
         }
         if (spec.type === "hexColor") {
@@ -597,8 +604,8 @@ function createMarkers(cfg) {
     return {
         line: make("✛", "#00ff04"),
         bar: make("✛", "#0095ff"),
-        estBar: make("e", "#38fc02"),
-        estFish: make("l", "#38fc02"),
+        estBar: make("estBar", "#38fc02"),
+        estFish: make("estFish", "#38fc02"),
         move: move,
         clear: clear,
         dispose: dispose
@@ -712,10 +719,12 @@ function run(cfg, detector, controller, markers, toggle) {
                 if (positions.lineCenterX !== -1 && positions.barCenterX !== -1) {
                     lastDetectionAt = now
 
-                    markers.move(markers.line, positions.lineCenterX)
-                    markers.move(markers.bar, positions.barCenterX)
-                    markers.move(markers.estBar, controller.snapshot().barX)
-                    markers.move(markers.estFish, controller.snapshot().fishX)
+                    if (cfg.debug.showMarkers) {
+                        markers.move(markers.line, positions.lineCenterX)
+                        markers.move(markers.bar, positions.barCenterX)
+                        markers.move(markers.estBar, controller.snapshot().barX)
+                        markers.move(markers.estFish, controller.snapshot().fishX)
+                    }
 
                     if (now - minigameStartedAt < cfg.control.controller.minigameLockMs)
                         controller.update(now, positions.barCenterX, positions.lineCenterX, false)
