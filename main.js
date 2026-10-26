@@ -72,12 +72,13 @@ function createConfig() {
         "control.controller.deadbandPx": { type: "number", min: 0 },
         "control.controller.holdPenaltyPerMs": { type: "number", min: 0 },
         "control.controller.minigameLockMs": { type: "number", min: 0 },
+        "control.controller.bouncePenaltyPerImpact": { type: "number", min: 0 },
+        "control.controller.contactPenalty": { type: "number", min: 0 },
 
         "control.estimator.holdAccelPxPerSec2": { type: "number", min: 1 },
         "control.estimator.releaseAccelPxPerSec2": { type: "number", min: 1 },
         "control.estimator.accelAdaptPercent": { type: "number", min: 0, max: 100 },
         "control.estimator.defaultOverheadMs": { type: "number", min: 0, max: 1000 },
-        "control.estimator.lookAheadMs": { type: "number", min: 1 },
         "control.estimator.pulseStepMs": { type: "number", min: 0.001 },
         "control.estimator.simStepMs": { type: "number", min: 0.001 },
         "control.estimator.wallBouncePercent": { type: "number", min: 0, max: 100 },
@@ -86,7 +87,8 @@ function createConfig() {
         "control.estimator.minAccel": { type: "number", min: 0 },
         "control.estimator.maxAccel": { type: "number", min: 0 },
         "control.estimator.estAlpha": { type: "number", min: 0, max: 1 },
-        "control.estimator.estBeta": { type: "number", min: 0, max: 1 }
+        "control.estimator.estBeta": { type: "number", min: 0, max: 1 },
+        "control.estimator.postActionBrakeMs": { type: "number", min: 1, max: 500 }
     }
 
     function getValue(obj, path) {
@@ -268,14 +270,12 @@ function createController(cfg) {
     var ctl = cfg.control.controller
     var est = cfg.control.estimator
 
-    var holdMaxS = ctl.holdMaxMs / 1000
-    var releaseMaxS = ctl.releaseMaxMs / 1000
     var pressLatencyS = ctl.pressLatencyMs / 1000
     var velocityCostS = ctl.velocityCostMs / 1000
     var accelAdapt = est.accelAdaptPercent / 100
-    var lookAheadS = est.lookAheadMs / 1000
     var simStepS = est.simStepMs / 1000
     var wallBounce = est.wallBouncePercent / 100
+    var brakeS = est.postActionBrakeMs / 1000
 
     var state = createControlState(cfg)
 
@@ -390,6 +390,9 @@ function createController(cfg) {
         var outside = Math.max(0, Math.abs(predicted.error) - ctl.deadbandPx)
         var velocityCost = predicted.velocity * velocityCostS
         var cost = outside * outside + velocityCost * velocityCost
+        cost += predicted.impacts * ctl.bouncePenaltyPerImpact
+        if (predicted.contact)
+            cost += ctl.contactPenalty
         if (isHold)
             cost += ctl.holdPenaltyPerMs * durationMs
         if (!best || cost < best.cost)
@@ -398,23 +401,21 @@ function createController(cfg) {
     }
 
     function choosePulse() {
-        var maxActionSeconds = Math.max(
-            holdMaxS + pressLatencyS,
-            releaseMaxS
-        ) + state.overheadMs / 1000
-        var horizon = Math.max(lookAheadS, maxActionSeconds)
+        var overheadS = state.overheadMs / 1000
 
         var best = null
         var t
         for (t = ctl.releaseMinMs; t <= ctl.releaseMaxMs; t += est.pulseStepMs) {
+            var horizonR = overheadS + t / 1000 + brakeS
             var predictedRelease = simulateCandidate(
-                state.barX, state.barV, state.fishX, state.fishV, t, false, horizon
+                state.barX, state.barV, state.fishX, state.fishV, t, false, horizonR
             )
             best = considerCandidate(best, predictedRelease, t, false)
         }
         for (t = ctl.holdMinMs; t <= ctl.holdMaxMs; t += est.pulseStepMs) {
+            var horizonH = pressLatencyS + overheadS + t / 1000 + brakeS
             var predictedHold = simulateCandidate(
-                state.barX, state.barV, state.fishX, state.fishV, t, true, horizon
+                state.barX, state.barV, state.fishX, state.fishV, t, true, horizonH
             )
             best = considerCandidate(best, predictedHold, t, true)
         }
