@@ -586,8 +586,11 @@ function createMarkers(cfg) {
         return win
     }
 
-    function move(win, x) {
-        win.setPosition(x + cfg.minigame.trackX, cfg.derived.mainScanY - 200)
+    function move(win, x, upperLevel) {
+        if (upperLevel)
+            win.setPosition(x + cfg.minigame.trackX, cfg.derived.mainScanY - 100)
+        else
+            win.setPosition(x + cfg.minigame.trackX, cfg.derived.mainScanY - 150)
     }
 
     function clear() {
@@ -720,10 +723,10 @@ function run(cfg, detector, controller, markers, toggle) {
                     lastDetectionAt = now
 
                     if (cfg.debug.showMarkers) {
-                        markers.move(markers.line, positions.lineCenterX)
-                        markers.move(markers.bar, positions.barCenterX)
-                        markers.move(markers.estBar, controller.snapshot().barX)
-                        markers.move(markers.estFish, controller.snapshot().fishX)
+                        markers.move(markers.line, positions.lineCenterX, true)
+                        markers.move(markers.bar, positions.barCenterX, true)
+                        markers.move(markers.estBar, controller.snapshot().barX, false)
+                        markers.move(markers.estFish, controller.snapshot().fishX, false)
                     }
 
                     if (now - minigameStartedAt < cfg.control.controller.minigameLockMs)
