@@ -7,22 +7,22 @@
     "holdMs": 300
   },
   "coins": {
-    "baseColor": "#fffde4",
+    "baseColor": "255 253 228",
     "paths": [
       [
         -13,
         -10,
-        "#fffde4"
+        "255 253 228"
       ],
       [
         -1,
         12,
-        "#fffde4"
+        "255 253 228"
       ],
       [
         -120,
         -45,
-        "#ffdcac"
+        "255 220 172"
       ]
     ],
     "region": [
@@ -34,27 +34,27 @@
     "threshold": 20
   },
   "shake": {
-    "baseColor": "#ffffff",
+    "baseColor": "255 255 255",
     "paths": [
       [
         -39,
         -13,
-        "#ebebeb"
+        "235 235 235"
       ],
       [
         -14,
         5,
-        "#ffffff"
+        "255 255 255"
       ],
       [
         24,
         -12,
-        "#fefefe"
+        "254 254 254"
       ],
       [
         41,
         8,
-        "#ffffff"
+        "255 255 255"
       ]
     ],
     "threshold": 20
@@ -67,7 +67,7 @@
     "mainScanY": 0,
     "secondaryScanY": 0,
     "arrow": {
-      "color": "#828688",
+      "color": "130 134 136",
       "threshold": 20,
       "releasedMaxHitOffset": 7,
       "width": 20
@@ -78,7 +78,7 @@
       "leftOffsetWhenHolding": 122
     },
     "line": {
-      "color": "#434b5b",
+      "color": "67 75 91",
       "threshold": 10
     }
   },
