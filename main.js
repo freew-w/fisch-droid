@@ -516,10 +516,10 @@ function createController(cfg) {
         return true
     }
 
-    function noteOverhead(now) {
+    function noteOverhead() {
         if (!state.lastAction)
             return
-        var measured = now - state.lastActionEndMs
+        var measured = Date.now() - state.lastActionEndMs
         if (measured >= 0 && measured < 500)
             state.overheadMs = state.overheadMs * 0.8 + measured * 0.2
     }
@@ -528,7 +528,7 @@ function createController(cfg) {
         if (!update(now, barPosition, fishPosition, true))
             return
 
-        noteOverhead(now)
+        noteOverhead()
 
         var error = state.barX - state.fishX
         var velocity = state.barV - state.fishV
