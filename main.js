@@ -10,12 +10,23 @@ function fail(message) {
     exit()
 }
 
-function hexToRgb(hex) {
-    var match = /^#?([0-9a-fA-F]{6})$/.exec(hex)
-    if (!match)
-        fail("Invalid color in config.json: " + hex)
-    var value = parseInt(match[1], 16)
-    return [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff]
+function rgbStrToArr(rgbStr) {
+    return rgbStr.split(" ").map(Number)
+}
+
+function rgbStrToHex(rgbStr) {
+    var rgb = rgbStrToArr(rgbStr)
+    var n = (1 << 24) + (rgb[0] << 16) + (rgb[1] << 8) + rgb[2]
+    return "#" + n.toString(16).slice(1)
+}
+
+function convertPaths(paths) {
+    var result = []
+    for (var i = 0; i < paths.length; i++) {
+        var p = paths[i]
+        result.push([p[0], p[1], colors.toInt(rgbStrToHex(p[2]))])
+    }
+    return result
 }
 
 function pixelHexColorInRgbRange(pixel, range, threshold) {
@@ -38,12 +49,12 @@ function createConfig() {
         "cast.reCastAfterNoDetectionForMs": { type: "number", min: 0 },
         "cast.holdMs": { type: "number", min: 0 },
 
-        "coins.baseColor": { type: "hexColor" },
+        "coins.baseColor": { type: "rgbColor" },
         "coins.paths": { type: "array" },
         "coins.region": { type: "numberArray", len: 4 },
         "coins.threshold": { type: "number", min: 0, max: 255 },
 
-        "shake.baseColor": { type: "hexColor" },
+        "shake.baseColor": { type: "rgbColor" },
         "shake.paths": { type: "array" },
         "shake.threshold": { type: "number", min: 0, max: 255 },
 
@@ -54,7 +65,7 @@ function createConfig() {
         "minigame.mainScanY": { type: "number", optional: true },
         "minigame.secondaryScanY": { type: "number", optional: true },
 
-        "minigame.arrow.color": { type: "hexColor" },
+        "minigame.arrow.color": { type: "rgbColor" },
         "minigame.arrow.threshold": { type: "number", min: 0, max: 255 },
         "minigame.arrow.releasedMaxHitOffset": { type: "number", min: 0 },
         "minigame.arrow.width": { type: "number", min: 1 },
@@ -63,7 +74,7 @@ function createConfig() {
         "minigame.bar.leftOffsetWhenReleased": { type: "number" },
         "minigame.bar.leftOffsetWhenHolding": { type: "number" },
 
-        "minigame.line.color": { type: "hexColor" },
+        "minigame.line.color": { type: "rgbColor" },
         "minigame.line.threshold": { type: "number", min: 0, max: 255 },
 
         "control.controller.holdX": { type: "number", optional: true },
@@ -124,9 +135,9 @@ function createConfig() {
                 return "expected a boolean, got " + JSON.stringify(value)
             return null
         }
-        if (spec.type === "hexColor") {
-            if (typeof value !== "string" || !/^#[0-9a-fA-F]{6}$/.test(value))
-                return "expected #rrggbb, got " + JSON.stringify(value)
+        if (spec.type === "rgbColor") {
+            if (typeof value !== "string" || !/^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?: (?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){2}$/.test(value))
+                return "expected r g b, got " + JSON.stringify(value)
             return null
         }
         if (spec.type === "array") {
@@ -175,9 +186,13 @@ function createConfig() {
             secondaryScanY: secondaryScanY,
             holdX: c.holdX ? c.holdX : device.width / 2,
             holdY: c.holdY ? c.holdY : device.height / 2,
-            arrowRgb: hexToRgb(m.arrow.color),
-            lineRgb: hexToRgb(m.line.color),
+            arrowRgb: rgbStrToArr(m.arrow.color),
+            lineRgb: rgbStrToArr(m.line.color),
             barHalfWidth: m.bar.width / 2,
+            coinsBaseColor: rgbStrToHex(raw.coins.baseColor),
+            shakeBaseColor: rgbStrToHex(raw.shake.baseColor),
+            coinsPaths: convertPaths(raw.coins.paths),
+            shakePaths: convertPaths(raw.shake.paths)
         }
         return raw
     }
@@ -204,8 +219,8 @@ function createDetector(cfg) {
     function isMinigame(img) {
         return images.findPointByColors(
             img,
-            cfg.coins.baseColor,
-            cfg.coins.paths,
+            cfg.derived.coinsBaseColor,
+            cfg.derived.coinsPaths,
             { region: cfg.coins.region, threshold: cfg.coins.threshold }
         ) === null
     }
@@ -213,8 +228,8 @@ function createDetector(cfg) {
     function findShake(img) {
         return images.findPointByColors(
             img,
-            cfg.shake.baseColor,
-            cfg.shake.paths,
+            cfg.derived.shakeBaseColor,
+            cfg.derived.shakePaths,
             { threshold: cfg.shake.threshold }
         )
     }
