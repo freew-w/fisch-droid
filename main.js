@@ -2,6 +2,8 @@ var CONFIG_PATH = "./config.json"
 
 var HIDDEN_WINDOW_POSITION = -500
 
+var AUTO_REGION_PADDING_PX = 8
+
 // ============================================================
 // Helpers
 // ============================================================
@@ -20,11 +22,11 @@ function rgbStrToHex(rgbStr) {
     return "#" + n.toString(16).slice(1)
 }
 
-function convertPaths(paths) {
+function convertPaths(paths, baseX, baseY) {
     var result = []
     for (var i = 0; i < paths.length; i++) {
         var p = paths[i]
-        result.push([p[0], p[1], colors.toInt(rgbStrToHex(p[2]))])
+        result.push([p[0] - baseX, p[1] - baseY, colors.toInt(rgbStrToHex(p[2]))])
     }
     return result
 }
@@ -43,17 +45,24 @@ function pixelHexColorInRgbRange(pixel, range, threshold) {
 // Config
 // ============================================================
 function createConfig() {
+    // AutoJs6 can report the natural (portrait) metrics even while the game is landscape.
+    var screenWidth = Math.max(device.width, device.height)
+    var screenHeight = Math.min(device.width, device.height)
+
     var SCHEMA = {
         "debug.showMarkers": { type: "boolean" },
 
         "cast.reCastAfterNoDetectionForMs": { type: "number", min: 0 },
         "cast.holdMs": { type: "number", min: 0 },
 
+        "coins.baseX": { type: "number", min: 0 },
+        "coins.baseY": { type: "number", min: 0 },
         "coins.baseColor": { type: "rgbColor" },
         "coins.paths": { type: "array" },
-        "coins.region": { type: "numberArray", len: 4 },
         "coins.threshold": { type: "number", min: 0, max: 255 },
 
+        "shake.baseX": { type: "number", min: 0 },
+        "shake.baseY": { type: "number", min: 0 },
         "shake.baseColor": { type: "rgbColor" },
         "shake.paths": { type: "array" },
         "shake.threshold": { type: "number", min: 0, max: 255 },
@@ -156,6 +165,64 @@ function createConfig() {
         return "unknown schema type " + spec.type
     }
 
+    function screenSizeProblem(name, point, label) {
+        if (typeof point[0] !== "number" || typeof point[1] !== "number")
+            return null
+        if (point[0] >= 0 && point[0] < screenWidth &&
+            point[1] >= 0 && point[1] < screenHeight)
+            return null
+        return name + "." + label + ": (" + point[0] + ", " + point[1] +
+            ") is outside the " + screenWidth + "x" + screenHeight +
+            " screen; recalibrate config.json for this resolution"
+    }
+
+    function addScreenBoundsProblems(problems, group, name) {
+        if (!group)
+            return
+
+        var baseProblem = screenSizeProblem(name, [group.baseX, group.baseY], "base")
+        if (baseProblem)
+            problems.push(baseProblem)
+
+        if (!(group.paths instanceof Array))
+            return
+        for (var i = 0; i < group.paths.length; i++) {
+            var p = group.paths[i]
+            if (!(p instanceof Array))
+                continue
+            var problem = screenSizeProblem(name, p, "paths[" + i + "]")
+            if (problem)
+                problems.push(problem)
+        }
+    }
+
+    function deriveRegion(group) {
+        var minX = group.baseX
+        var maxX = group.baseX
+        var minY = group.baseY
+        var maxY = group.baseY
+
+        for (var i = 0; i < group.paths.length; i++) {
+            var p = group.paths[i]
+            if (p[0] < minX) minX = p[0]
+            if (p[0] > maxX) maxX = p[0]
+            if (p[1] < minY) minY = p[1]
+            if (p[1] > maxY) maxY = p[1]
+        }
+
+        var left = Math.max(0, Math.min(screenWidth - 1, Math.floor(minX - AUTO_REGION_PADDING_PX)))
+        var top = Math.max(0, Math.min(screenHeight - 1, Math.floor(minY - AUTO_REGION_PADDING_PX)))
+        var right = Math.max(left, Math.min(screenWidth - 1, Math.ceil(maxX + AUTO_REGION_PADDING_PX)))
+        var bottom = Math.max(top, Math.min(screenHeight - 1, Math.ceil(maxY + AUTO_REGION_PADDING_PX)))
+
+        return [
+            left,
+            top,
+            Math.max(1, right - left + 1),
+            Math.max(1, bottom - top + 1)
+        ]
+    }
+
     function validateConfig(raw) {
         var problems = []
         for (var path in SCHEMA) {
@@ -163,6 +230,10 @@ function createConfig() {
             if (problem)
                 problems.push(path + ": " + problem)
         }
+
+        addScreenBoundsProblems(problems, raw.coins, "coins")
+        addScreenBoundsProblems(problems, raw.shake, "shake")
+
         if (problems.length)
             fail("config.json has " + problems.length + " problem(s):\n  " +
                 problems.join("\n  "))
@@ -191,8 +262,9 @@ function createConfig() {
             barHalfWidth: m.bar.width / 2,
             coinsBaseColor: rgbStrToHex(raw.coins.baseColor),
             shakeBaseColor: rgbStrToHex(raw.shake.baseColor),
-            coinsPaths: convertPaths(raw.coins.paths),
-            shakePaths: convertPaths(raw.shake.paths)
+            coinsRegion: deriveRegion(raw.coins),
+            coinsPaths: convertPaths(raw.coins.paths, raw.coins.baseX, raw.coins.baseY),
+            shakePaths: convertPaths(raw.shake.paths, raw.shake.baseX, raw.shake.baseY)
         }
         return raw
     }
@@ -221,7 +293,7 @@ function createDetector(cfg) {
             img,
             cfg.derived.coinsBaseColor,
             cfg.derived.coinsPaths,
-            { region: cfg.coins.region, threshold: cfg.coins.threshold }
+            { region: cfg.derived.coinsRegion, threshold: cfg.coins.threshold }
         ) === null
     }
 
