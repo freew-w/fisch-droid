@@ -1,0 +1,116 @@
+{
+  "debug": {
+    "showMarkers": true
+  },
+  "cast": {
+    "reCastAfterNoDetectionForMs": 3000,
+    "holdMs": 300
+  },
+  "coins": {
+    "baseColor": "#fffde4",
+    "paths": [
+      [
+        -13,
+        -10,
+        "#fffde4"
+      ],
+      [
+        -1,
+        12,
+        "#fffde4"
+      ],
+      [
+        -120,
+        -45,
+        "#ffdcac"
+      ]
+    ],
+    "region": [
+      1805,
+      907,
+      76,
+      88
+    ],
+    "threshold": 20
+  },
+  "shake": {
+    "baseColor": "#ffffff",
+    "paths": [
+      [
+        -39,
+        -13,
+        "#ebebeb"
+      ],
+      [
+        -14,
+        5,
+        "#ffffff"
+      ],
+      [
+        24,
+        -12,
+        "#fefefe"
+      ],
+      [
+        41,
+        8,
+        "#ffffff"
+      ]
+    ],
+    "threshold": 20
+  },
+  "minigame": {
+    "trackX": 565,
+    "trackY": 843,
+    "trackWidth": 762,
+    "trackHeight": 26,
+    "mainScanY": 0,
+    "secondaryScanY": 0,
+    "arrow": {
+      "color": "#828688",
+      "threshold": 20,
+      "releasedMaxHitOffset": 9,
+      "width": 28
+    },
+    "bar": {
+      "width": 343,
+      "leftOffsetWhenReleased": 22,
+      "leftOffsetWhenHolding": 294
+    },
+    "line": {
+      "color": "#434b5b",
+      "threshold": 10
+    }
+  },
+  "control": {
+    "controller": {
+      "holdMinMs": 30,
+      "holdMaxMs": 240,
+      "releaseMinMs": 30,
+      "releaseMaxMs": 100,
+      "pressLatencyMs": 12,
+      "velocityCostMs": 180,
+      "deadbandPx": 15,
+      "holdPenaltyPerMs": 0.005,
+      "bouncePenaltyPerImpact": 30000,
+      "contactPenalty": 100,
+      "minigameLockMs": 1400
+    },
+    "estimator": {
+      "holdAccelPxPerSec2": 900,
+      "releaseAccelPxPerSec2": 900,
+      "accelAdaptPercent": 10,
+      "defaultOverheadMs": 80,
+      "postActionBrakeMs": 100,
+      "pulseStepMs": 5,
+      "simStepMs": 5,
+      "wallBouncePercent": 50,
+      "minWallBounceSpeed": 20,
+      "minBrakeSpeed": 100,
+      "minAccel": 100,
+      "maxAccel": 2000,
+      "estAlpha": 0.7,
+      "estBeta": 0.35
+    }
+  }
+}
