@@ -92,7 +92,7 @@ function createConfig() {
         "control.controller.holdMaxMs": { type: "number", min: 0 },
         "control.controller.releaseMinMs": { type: "number", min: 0 },
         "control.controller.releaseMaxMs": { type: "number", min: 0 },
-        "control.controller.pressLatencyMs": { type: "number", min: 0 },
+        "control.controller.pulseStepMs": { type: "number", min: 0.001 },
         "control.controller.velocityCostMs": { type: "number", min: 0 },
         "control.controller.deadbandPx": { type: "number", min: 0 },
         "control.controller.minigameLockMs": { type: "number", min: 0 },
@@ -103,7 +103,7 @@ function createConfig() {
         "control.estimator.releaseAccelPxPerSec2": { type: "number", min: 1 },
         "control.estimator.accelAdaptPercent": { type: "number", min: 0, max: 100 },
         "control.estimator.defaultOverheadMs": { type: "number", min: 0, max: 1000 },
-        "control.estimator.pulseStepMs": { type: "number", min: 0.001 },
+        "control.estimator.pressLatencyMs": { type: "number", min: 0 },
         "control.estimator.simStepMs": { type: "number", min: 0.001 },
         "control.estimator.wallBouncePercent": { type: "number", min: 0, max: 100 },
         "control.estimator.minWallBounceSpeed": { type: "number", min: 0 },
@@ -366,7 +366,7 @@ function createController(cfg) {
     var ctl = cfg.control.controller
     var est = cfg.control.estimator
 
-    var pressLatencyS = ctl.pressLatencyMs / 1000
+    var pressLatencyS = est.pressLatencyMs / 1000
     var velocityCostS = ctl.velocityCostMs / 1000
     var accelAdapt = est.accelAdaptPercent / 100
     var simStepS = est.simStepMs / 1000
@@ -499,14 +499,14 @@ function createController(cfg) {
 
         var best = null
         var t
-        for (t = ctl.releaseMinMs; t <= ctl.releaseMaxMs; t += est.pulseStepMs) {
+        for (t = ctl.releaseMinMs; t <= ctl.releaseMaxMs; t += ctl.pulseStepMs) {
             var horizonR = overheadS + t / 1000 + brakeS
             var predictedRelease = simulateCandidate(
                 state.barX, state.barV, state.fishX, state.fishV, t, false, horizonR
             )
             best = considerCandidate(best, predictedRelease, t, false)
         }
-        for (t = ctl.holdMinMs; t <= ctl.holdMaxMs; t += est.pulseStepMs) {
+        for (t = ctl.holdMinMs; t <= ctl.holdMaxMs; t += ctl.pulseStepMs) {
             var horizonH = pressLatencyS + overheadS + t / 1000 + brakeS
             var predictedHold = simulateCandidate(
                 state.barX, state.barV, state.fishX, state.fishV, t, true, horizonH
