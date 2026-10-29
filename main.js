@@ -95,7 +95,6 @@ function createConfig() {
         "control.controller.pressLatencyMs": { type: "number", min: 0 },
         "control.controller.velocityCostMs": { type: "number", min: 0 },
         "control.controller.deadbandPx": { type: "number", min: 0 },
-        "control.controller.holdPenaltyPerMs": { type: "number", min: 0 },
         "control.controller.minigameLockMs": { type: "number", min: 0 },
         "control.controller.bouncePenaltyPerImpact": { type: "number", min: 0 },
         "control.controller.contactPenalty": { type: "number", min: 0 },
@@ -490,8 +489,6 @@ function createController(cfg) {
         cost += predicted.impacts * ctl.bouncePenaltyPerImpact
         if (predicted.contact)
             cost += ctl.contactPenalty
-        if (isHold)
-            cost += ctl.holdPenaltyPerMs * durationMs
         if (!best || cost < best.cost)
             return { hold: isHold, durationMs: durationMs, cost: cost, impacts: predicted.impacts }
         return best

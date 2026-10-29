@@ -89,7 +89,6 @@
       "pressLatencyMs": 12,
       "velocityCostMs": 180,
       "deadbandPx": 15,
-      "holdPenaltyPerMs": 0.005,
       "bouncePenaltyPerImpact": 30000,
       "contactPenalty": 100,
       "minigameLockMs": 1400
