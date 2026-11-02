@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Fisch Droid</string>
+    <string name="accessibility_service_description">Fisch Droid uses accessibility service to simulate presses</string>
+    <string name="accessibility_service_summary">Enables touch simulating</string>
+</resources>

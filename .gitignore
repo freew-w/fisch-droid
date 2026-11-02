@@ -1,0 +1,33 @@
+# Gradle / Kotlin build output
+.gradle/
+.kotlin/
+build/
+
+# Local machine configuration (SDK path etc.)
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+
+# Debug screenshots and scratch files
+/Pictures
+
+# Signing material and secrets
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# Native build output
+.externalNativeBuild/
+.cxx/
+
+# Logs and heap dumps
+*.log
+*.hprof
+
+# OS files
+.DS_Store
+Thumbs.db
