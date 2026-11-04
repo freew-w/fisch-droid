@@ -7,6 +7,10 @@ the source of truth.
 
 Package/application ID: `io.github.freew_w.fischdroid`. UI is classic Views/XML, not Compose.
 
+Source layout: the root package holds `MainActivity`, `ScreenCaptureService`, and `TapService`;
+`minigame/` holds `Detector`; `overlay/` holds `OverlayManager`/`OverlayView`; `shake/` holds
+`Detector`/`Clicker`.
+
 ## Build and verify
 
 - `./gradlew :app:assembleDebug` — debug APK at `app/build/outputs/apk/debug/app-debug.apk`.
@@ -27,17 +31,28 @@ AndroidX, not declared in `app/build.gradle.kts`.
 
 - `MainActivity` only requests the accessibility service, requests MediaProjection consent, and
   performs a hardcoded test tap at `(518, 910)` after 3 seconds. Do not assume an automatic
-  detection→tap loop exists.
+  detection→tap loop exists for the minigame; the only automatic tapping is the shake button
+  described below.
+- `shake/ShakeDetector.kt` finds the post-cast "SHAKE" button with no per-device calibration: five
+  equal-height white glyphs in a roughly 4:1 row, verified against the bright ring and dark disk
+  around them. Its thresholds are all ratios of the frame/glyph size, so resolution, UI scale and
+  background do not matter. `shake/ShakeClicker.kt` taps the detected center at most every 120 ms
+  while the button is visible, which also stops on its own once the minigame starts. The in-game
+  jump button is also a ringed dark disk, but it has an arrow instead of the glyphs and is rejected.
+  Reference crops live in `Pictures/Shakes/`; the host tests in
+  `app/src/test/java/io/github/freew_w/fischdroid/DetectorTest.kt` use copies in
+  `app/src/test/resources/shake/`. While detected, `overlay/OverlayView.kt` draws a cyan ring and
+  center dot.
 - `ScreenCaptureService` must be started with the MediaProjection result token returned to
   `MainActivity`; it cannot be launched usefully from adb/CLI alone. It runs as a media-projection
   foreground service and captures through `ImageReader`.
 - The accessibility service (`TapService`) must be enabled manually in system settings before the
-  overlay or gestures work. The overlay uses `TYPE_ACCESSIBILITY_OVERLAY`; there is no
-  `SYSTEM_ALERT_WINDOW` permission.
-- `Detector` ignores portrait frames (`bitmap.height > bitmap.width` returns), and its scan
-  coordinates, colors, and expected bar width are calibrated to specific screen geometry.
-  Recalibrate the constants in `Detector.kt` and the tap coordinates in `MainActivity.kt` for a
-  different device/emulator.
+  overlay or gestures work. `overlay/OverlayManager.kt` uses `TYPE_ACCESSIBILITY_OVERLAY`; there
+  is no `SYSTEM_ALERT_WINDOW` permission.
+- `minigame/Detector.kt` ignores portrait frames (`bitmap.height > bitmap.width` returns), and its
+  scan coordinates, colors, and expected bar width are calibrated to specific screen geometry.
+  Recalibrate its constants and the tap coordinates in `MainActivity.kt` for a different
+  device/emulator.
 - Keep R8 keep rules in `app/src/main/keepRules/*.keep` (AGP 9 location), not a
   `proguard-rules.pro`. Release builds enable R8 optimization scoped to `androidx.**`, `kotlin.**`,
   and `kotlinx.**`.
@@ -53,5 +68,6 @@ AndroidX, not declared in `app/build.gradle.kts`.
 - Repo-root `Pictures/` is gitignored and holds reference captures (portrait and landscape, several
   resolutions) useful for calibrating `Detector`. New runtime captures go to app-specific external
   storage, not this directory.
-- Unit/instrumentation tests are the generated placeholders and do not exercise capture, detection,
-  overlay, or gestures; verify behavior on a device.
+- `DetectorTest` is a real host test over the `app/src/test/resources/shake/` crops.
+  `ExampleUnitTest`/`ExampleInstrumentedTest` are placeholders; capture, minigame detection,
+  overlay, and gestures still need device verification.

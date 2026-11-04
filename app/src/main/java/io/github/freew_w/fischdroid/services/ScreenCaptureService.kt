@@ -1,4 +1,4 @@
-package io.github.freew_w.fischdroid
+package io.github.freew_w.fischdroid.services
 
 import android.app.Activity
 import android.app.NotificationChannel
@@ -23,6 +23,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.createBitmap
 import androidx.window.layout.WindowMetricsCalculator
+import io.github.freew_w.fischdroid.minigame.Detector
+import io.github.freew_w.fischdroid.shake.Clicker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -49,6 +51,8 @@ class ScreenCaptureService : Service() {
     }
 
     private var session: CaptureSession? = null
+
+    @Volatile
     private var isProcessingFrame = false
     private var debugFrameSaved = false
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -184,40 +188,41 @@ class ScreenCaptureService : Service() {
         val current = session ?: return
         val image = reader.acquireLatestImage() ?: return
 
-        try {
-            if (isProcessingFrame) return
-            isProcessingFrame = true
+        if (isProcessingFrame) {
+            image.close()
+            return
+        }
+        isProcessingFrame = true
 
-            val plane = image.planes[0]
-            val pixelStride = plane.pixelStride
-            val bufferWidth = maxOf(image.width, (plane.rowStride + pixelStride - 1) / pixelStride)
-            val bufferHeight = image.height
+        val plane = image.planes[0]
+        val pixelStride = plane.pixelStride
+        val bufferWidth = maxOf(image.width, (plane.rowStride + pixelStride - 1) / pixelStride)
+        val bufferHeight = image.height
+        val frameWidth = image.width
+        val frameHeight = image.height
 
-            // Keep a local reference so a configuration change cannot null it mid-frame.
-            val frameBitmap =
-                current.bitmap?.takeIf { it.width == bufferWidth && it.height == bufferHeight }
-                    ?: createBitmap(bufferWidth, bufferHeight).also { current.bitmap = it }
+        serviceScope.launch {
+            try {
+                // Keep a local reference so a configuration change cannot null it mid-frame.
+                val frameBitmap =
+                    current.bitmap?.takeIf { it.width == bufferWidth && it.height == bufferHeight }
+                        ?: createBitmap(bufferWidth, bufferHeight).also { current.bitmap = it }
 
-            plane.buffer.rewind()
-            frameBitmap.copyPixelsFromBuffer(plane.buffer)
+                plane.buffer.rewind()
+                frameBitmap.copyPixelsFromBuffer(plane.buffer)
+                image.close()
 
-            val frameWidth = image.width
-            val frameHeight = image.height
-
-            serviceScope.launch {
                 if (DEBUG_SAVE_FRAMES && !debugFrameSaved) {
                     debugFrameSaved = true
                     saveBitmapForDebug(frameBitmap, frameWidth, frameHeight)
                 }
+
+                Clicker.processFrame(frameBitmap, frameWidth, frameHeight)
                 Detector.processFrame(frameBitmap)
+            } finally {
+                runCatching { image.close() }
                 isProcessingFrame = false
             }
-        } catch (t: Throwable) {
-            isProcessingFrame = false
-            throw t
-        } finally {
-            // Always release the image, including on the early return above and on exceptions.
-            image.close()
         }
     }
 

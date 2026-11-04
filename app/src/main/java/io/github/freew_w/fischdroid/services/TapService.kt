@@ -1,4 +1,4 @@
-package io.github.freew_w.fischdroid
+package io.github.freew_w.fischdroid.services
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Path
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import io.github.freew_w.fischdroid.overlay.OverlayManager
 
 private const val TAG = "TapService"
 

@@ -1,8 +1,9 @@
-package io.github.freew_w.fischdroid
+package io.github.freew_w.fischdroid.overlay
 
 import android.accessibilityservice.AccessibilityService
 import android.graphics.PixelFormat
 import android.view.WindowManager
+import io.github.freew_w.fischdroid.shake.Detector
 
 object OverlayManager {
     private var overlayView: OverlayView? = null
@@ -29,8 +30,12 @@ object OverlayManager {
         windowManager.addView(overlayView, params)
     }
 
-    fun update(fish: Int?, bar: Pair<Int, Int>?) {
-        overlayView?.update(fish, bar)
+    fun updateMinigame(fish: Int?, bar: Pair<Int, Int>?) {
+        overlayView?.updateMinigame(fish, bar)
+    }
+
+    fun updateShake(button: Detector.Button?) {
+        overlayView?.updateShake(button)
     }
 
     fun dbgDots(edges: List<Int>?) {

@@ -1,9 +1,10 @@
-package io.github.freew_w.fischdroid
+package io.github.freew_w.fischdroid.minigame
 
 import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.get
+import io.github.freew_w.fischdroid.overlay.OverlayManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
@@ -142,7 +143,7 @@ object Detector {
         Score all possible bars based on their distance from last bar and brightness to find the best bar
 
     Find the fish and bar for five rows
-    For fish and bar cneter:
+    For fish and bar center:
         Filter out the nulls
         Sort them
         Take the median
@@ -158,7 +159,7 @@ object Detector {
                 return@withContext
             }
 
-            var fishAndBars = emptyList<Pair<Int?, Pair<Int, Int>?>>()
+            val fishAndBars = mutableListOf<Pair<Int?, Pair<Int, Int>?>>()
             TRACK_SCAN_YS.forEach { scanY ->
                 val (fish, bar) = findFishAndBar(bitmap, scanY, historyBarCenters.lastOrNull())
                 fishAndBars += fish to bar
@@ -178,9 +179,9 @@ object Detector {
             val bar =
                 takeMedian(historyBarCenters.sorted())?.let { it - EXPECTED_BAR_WIDTH / 2 to it + EXPECTED_BAR_WIDTH / 2 }
 
-            withContext(Dispatchers.Main, {
-                OverlayManager.update(fish, bar)
-            })
+            withContext(Dispatchers.Main) {
+                OverlayManager.updateMinigame(fish, bar)
+            }
         }
     }
 }
