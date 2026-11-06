@@ -15,11 +15,9 @@ import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
-import android.os.Environment
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.createBitmap
 import androidx.window.layout.WindowMetricsCalculator
@@ -30,18 +28,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-
-private const val TAG = "ScreenCaptureService"
 
 class ScreenCaptureService : Service() {
-    /**
-     * Everything that only exists while a capture is running. Keeping it in one object means
-     * there is a single source of truth: if it is `null`, nothing is capturing, and if it is
-     * not, all of its parts (projection, reader, display) are valid.
-     */
     private class CaptureSession(
         val projection: MediaProjection,
         var reader: ImageReader,
@@ -51,21 +39,11 @@ class ScreenCaptureService : Service() {
     }
 
     private var session: CaptureSession? = null
-
-    @Volatile
-    private var isProcessingFrame = false
-    private var debugFrameSaved = false
     private val mainHandler = Handler(Looper.getMainLooper())
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private companion object {
-        /**
-         * Set to `true` to dump the first captured frame of each stream setup as a PNG.
-         * Pull it from the device with:
-         * `adb pull /sdcard/Android/data/io.github.freew_w.fischdroid/files/Pictures/`
-         */
-        private const val DEBUG_SAVE_FRAMES = false
-    }
+    @Volatile
+    private var isProcessingFrame = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -75,26 +53,60 @@ class ScreenCaptureService : Service() {
         val resultCode =
             intent?.getIntExtra("resultCode", Activity.RESULT_CANCELED) ?: Activity.RESULT_CANCELED
         @Suppress("DEPRECATION") val data =
-            intent?.getParcelableExtra<Intent>("data") ?: return START_NOT_STICKY
+            intent?.getParcelableExtra<Intent>("data") ?: run {
+                stop()
+                return START_NOT_STICKY
+            }
 
         val manager = getSystemService(MediaProjectionManager::class.java)
-        val projection = manager.getMediaProjection(resultCode, data) ?: return START_NOT_STICKY
+        val projection = manager.getMediaProjection(resultCode, data) ?: run {
+            stop()
+            return START_NOT_STICKY
+        }
         projection.registerCallback(object : MediaProjection.Callback() {
             override fun onStop() {
+                stop()
                 super.onStop()
-                // The projection is already stopping, so only release the resources around it.
-                releaseSession(stopProjection = false)
-                stopSelf()
             }
         }, null)
 
-        startCapture(projection)
+        val (width, height, density) = screenMetrics()
+        val reader = newImageReader(width, height)
+        val display = projection.createVirtualDisplay(
+            "FischDroidCapture",
+            width,
+            height,
+            density,
+            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+            reader.surface,
+            null,
+            null
+        ) ?: run {
+            reader.close()
+            projection.stop()
+            stop()
+            return START_NOT_STICKY
+        }
+        session = CaptureSession(projection, reader, display)
+        attachFrameListener(reader)
+
         return START_STICKY
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        reconfigureCapture()
+
+        val current = session ?: return
+        current.reader.close()
+        current.bitmap?.recycle()
+        current.bitmap = null
+
+        val (width, height, density) = screenMetrics()
+        val reader = newImageReader(width, height)
+        current.reader = reader
+        current.display.resize(width, height, density)
+        current.display.surface = reader.surface
+        attachFrameListener(reader)
     }
 
     override fun onDestroy() {
@@ -123,52 +135,18 @@ class ScreenCaptureService : Service() {
         }
     }
 
-    private fun startCapture(projection: MediaProjection) {
-        val (width, height, density) = screenMetrics()
-        val reader = newImageReader(width, height)
-        val display = projection.createVirtualDisplay(
-            "FischDroidCapture",
-            width,
-            height,
-            density,
-            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-            reader.surface,
-            null,
-            null
-        ) ?: run {
-            reader.close()
-            projection.stop()
-            return
-        }
-        session = CaptureSession(projection, reader, display)
-        attachFrameListener(reader)
+    private fun stop() {
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
     }
 
-    private fun reconfigureCapture() {
+    private fun releaseSession() {
         val current = session ?: return
-        val (width, height, density) = screenMetrics()
-
-        val reader = newImageReader(width, height)
-        current.reader.setOnImageAvailableListener(null, null)
-        current.reader.close()
-        current.reader = reader
-        current.bitmap = null
-
-        current.display.resize(width, height, density)
-        current.display.surface = reader.surface
-
-        debugFrameSaved = false
-        attachFrameListener(reader)
-    }
-
-    private fun releaseSession(stopProjection: Boolean = true) {
-        val current = session ?: return
-        // Clear the field first so re-entrant calls (e.g. from onStop) become no-ops.
         session = null
-        current.reader.setOnImageAvailableListener(null, null)
-        current.display.release()
+        current.projection.stop()
         current.reader.close()
-        if (stopProjection) current.projection.stop()
+        current.display.release()
+        current.bitmap?.recycle()
     }
 
     private fun screenMetrics(): Triple<Int, Int, Int> {
@@ -212,54 +190,12 @@ class ScreenCaptureService : Service() {
                 frameBitmap.copyPixelsFromBuffer(plane.buffer)
                 image.close()
 
-                if (DEBUG_SAVE_FRAMES && !debugFrameSaved) {
-                    debugFrameSaved = true
-                    saveBitmapForDebug(frameBitmap, frameWidth, frameHeight)
-                }
-
                 Clicker.processFrame(frameBitmap, frameWidth, frameHeight)
                 Detector.processFrame(frameBitmap)
             } finally {
                 runCatching { image.close() }
                 isProcessingFrame = false
             }
-        }
-    }
-
-    /**
-     * Saves [bitmap] as a PNG in the app-specific external Pictures directory so it can be
-     * inspected from outside the app (no storage permission required).
-     *
-     * [width] and [height] are the real frame dimensions; the bitmap itself may be wider
-     * because of row-stride padding, so it is cropped before saving.
-     *
-     * @return the written file, or `null` if saving failed.
-     */
-    private fun saveBitmapForDebug(bitmap: Bitmap, width: Int, height: Int): File? {
-        val cropped = if (bitmap.width != width || bitmap.height != height) {
-            Bitmap.createBitmap(bitmap, 0, 0, width, height)
-        } else {
-            bitmap
-        }
-        return try {
-            val dir = getExternalFilesDir(Environment.DIRECTORY_PICTURES) ?: filesDir
-            val file = File(dir, "capture_${System.currentTimeMillis()}.png")
-            FileOutputStream(file).use { output ->
-                if (!cropped.compress(Bitmap.CompressFormat.PNG, 100, output)) {
-                    Log.w(TAG, "saveBitmapForDebug: failed to compress bitmap")
-                    return null
-                }
-            }
-            Log.d(
-                TAG,
-                "saveBitmapForDebug: saved ${cropped.width}x${cropped.height} bitmap to ${file.absolutePath}"
-            )
-            file
-        } catch (e: IOException) {
-            Log.e(TAG, "saveBitmapForDebug: failed to write bitmap", e)
-            null
-        } finally {
-            if (cropped !== bitmap) cropped.recycle()
         }
     }
 }
