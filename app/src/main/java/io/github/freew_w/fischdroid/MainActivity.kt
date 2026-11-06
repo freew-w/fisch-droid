@@ -55,5 +55,14 @@ class MainActivity : AppCompatActivity() {
             val manager = getSystemService(MediaProjectionManager::class.java)
             startMediaProjection.launch(manager.createScreenCaptureIntent())
         }
+
+        findViewById<Button>(R.id.btnStopCapture).setOnClickListener {
+            startForegroundService(
+                Intent(this, ScreenCaptureService::class.java).putExtra(
+                    "ACTION",
+                    "STOP"
+                )
+            )
+        }
     }
 }

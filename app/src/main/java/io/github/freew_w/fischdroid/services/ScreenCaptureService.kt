@@ -50,6 +50,11 @@ class ScreenCaptureService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForegroundWithNotification()
 
+        if (intent?.getStringExtra("ACTION") == "STOP") {
+            stop()
+            return START_NOT_STICKY
+        }
+
         val resultCode =
             intent?.getIntExtra("resultCode", Activity.RESULT_CANCELED) ?: Activity.RESULT_CANCELED
         @Suppress("DEPRECATION") val data =
