@@ -51,7 +51,7 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnEnable).setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-            Toast.makeText(this, "Find Fisch Droid and enable it", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, R.string.enable_accessibility_hint, Toast.LENGTH_LONG).show()
         }
 
         findViewById<Button>(R.id.btnClick).setOnClickListener {
