@@ -1,7 +1,10 @@
 package io.github.freew_w.fischdroid
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.projection.MediaProjectionManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -11,6 +14,7 @@ import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import io.github.freew_w.fischdroid.services.ScreenCaptureService
@@ -27,6 +31,12 @@ class MainActivity : AppCompatActivity() {
             }
             startForegroundService(intent)
         }
+    }
+
+    private val requestNotifications = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        launchScreenCapture()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,8 +62,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.btnCapture).setOnClickListener {
-            val manager = getSystemService(MediaProjectionManager::class.java)
-            startMediaProjection.launch(manager.createScreenCaptureIntent())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                launchScreenCapture()
+            }
         }
 
         findViewById<Button>(R.id.btnStopCapture).setOnClickListener {
@@ -64,5 +80,10 @@ class MainActivity : AppCompatActivity() {
                 )
             )
         }
+    }
+
+    private fun launchScreenCapture() {
+        val manager = getSystemService(MediaProjectionManager::class.java)
+        startMediaProjection.launch(manager.createScreenCaptureIntent())
     }
 }
