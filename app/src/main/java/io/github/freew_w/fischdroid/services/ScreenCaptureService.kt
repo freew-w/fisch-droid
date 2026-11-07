@@ -18,6 +18,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.createBitmap
 import androidx.window.layout.WindowMetricsCalculator
@@ -157,7 +158,7 @@ class ScreenCaptureService : Service() {
     private fun screenMetrics(): Triple<Int, Int, Int> {
         val metrics = WindowMetricsCalculator.getOrCreate().computeMaximumWindowMetrics(this)
         val bounds = metrics.bounds
-        return Triple(bounds.width(), bounds.height(), metrics.density.toInt())
+        return Triple(bounds.width(), bounds.height(), (metrics.density * 160).toInt())
     }
 
     private fun newImageReader(width: Int, height: Int): ImageReader =
