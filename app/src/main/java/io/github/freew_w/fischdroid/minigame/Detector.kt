@@ -11,16 +11,17 @@ import kotlin.math.abs
 import kotlin.math.sqrt
 
 object Detector {
-    private const val TRACK_X = 564 - 5
+    data class Fish(val x: Int)
+    data class Bar(val x1: Int, val x2: Int) {
+        val center = (x1 + x2) / 2
+    }
+
+    private const val TRACK_X = 564
     private const val TRACK_Y = 842
-    private const val TRACK_W = 764 + 5
+    private const val TRACK_W = 764
     private const val TRACK_H = 31
-
-//    private const val TRACK_X = 758 - 5
-//    private const val TRACK_Y = 887
-//    private const val TRACK_W = 884 + 5
-//    private const val TRACK_H = 35
-
+    private const val TRACK_X1_ITER = TRACK_X - 5 // Inclusive
+    private const val TRACK_X2_ITER = TRACK_X + TRACK_W - 1 + 5 // Inclusive
     val TRACK_SCAN_YS = listOf(
         TRACK_Y + 2,
         TRACK_Y + 4,
@@ -29,12 +30,14 @@ object Detector {
         TRACK_Y + TRACK_H - 2
     )
 
-//    private const val EXPECTED_BAR_WIDTH = 382 // heaven rod
-//    private const val EXPECTED_BAR_WIDTH = 398 // rotd physical
-
-    private const val EXPECTED_BAR_WIDTH = 344 // rotd
+    private const val CONTROL = 0.15
+    private const val EXPECTED_BAR_WIDTH = ((TRACK_W - 5) * (0.3 + CONTROL) + 1).toInt()
     private const val WIDTH_TOLERANCE = 4
     private const val SMOOTHING_FRAMES = 10
+
+    private val lab1 = DoubleArray(3)
+    private val lab2 = DoubleArray(3)
+    private var historyBarCenters = ArrayDeque<Int>()
 
     private fun colorIntWithinRgbRange(
         color: Int, r: Int, g: Int, b: Int, threshold: Int
@@ -46,8 +49,6 @@ object Detector {
     }
 
     private fun getColorDistance(color1: Int, color2: Int): Double {
-        val lab1 = DoubleArray(3)
-        val lab2 = DoubleArray(3)
         ColorUtils.RGBToLAB(Color.red(color1), Color.green(color1), Color.blue(color1), lab1)
         ColorUtils.RGBToLAB(Color.red(color2), Color.green(color2), Color.blue(color2), lab2)
 
@@ -57,13 +58,13 @@ object Detector {
         return sqrt(deltaL * deltaL + deltaA * deltaA + deltaB * deltaB)
     }
 
-    private fun findPossibleBarsFromEdges(edges: List<Int>): List<Pair<Int, Int>> {
-        val bars = mutableListOf<Pair<Int, Int>>()
+    private fun findPossibleBarsFromEdges(edges: List<Int>): List<Bar> {
+        val bars = mutableListOf<Bar>()
         outerLoop@ for (i in 0 until edges.size - 1) {
             for (j in i + 1 until edges.size) {
                 val width = edges[j] - edges[i]
                 if (width in EXPECTED_BAR_WIDTH - WIDTH_TOLERANCE..EXPECTED_BAR_WIDTH + WIDTH_TOLERANCE) {
-                    bars.add(edges[i] to edges[j])
+                    bars.add(Bar(edges[i], edges[j]))
                 }
             }
         }
@@ -72,11 +73,11 @@ object Detector {
 
     private fun findFishAndBar(
         bitmap: Bitmap, scanY: Int, lastBarCenter: Int?
-    ): Pair<Int?, Pair<Int, Int>?> {
-        var fish: Int? = null
+    ): Pair<Fish?, Bar?> {
+        var fish: Fish? = null
         val edges = mutableListOf<Int>()
 
-        for (x in TRACK_X + 1 until TRACK_X + TRACK_W) {
+        for (x in TRACK_X1_ITER + 1..TRACK_X2_ITER) {
             val colorLeft = bitmap[x - 1, scanY]
             val colorRight = bitmap[x, scanY]
             val diff = getColorDistance(colorLeft, colorRight)
@@ -85,18 +86,18 @@ object Detector {
             }
 
             if (colorIntWithinRgbRange(colorRight, 67, 75, 91, 5)) {
-                fish = x
+                fish = Fish(x)
             }
         }
 
         val candidates = findPossibleBarsFromEdges(edges)
         if (candidates.isEmpty()) return fish to null
 
-        var bestBar: Pair<Int, Int>? = null
+        var bestBar: Bar? = null
         var bestScore = -Double.MAX_VALUE
 
         for (bar in candidates) {
-            val barCenter = bar.first + (bar.second - bar.first) / 2
+            val barCenter = bar.center
             var score = 0.0
 
             if (lastBarCenter != null) {
@@ -125,20 +126,10 @@ object Detector {
     }
 
     private fun takeMedian(list: List<Int>): Int? = if (list.isNotEmpty()) {
-        list.sorted().let {
-            if (it.size % 2 == 0) (it[it.size / 2] + it[(it.size - 1) / 2]) / 2
-            else it[it.size / 2]
-        }
+        list.sorted()
+            .let { if (it.size % 2 == 0) (it[it.size / 2] + it[(it.size - 1) / 2]) / 2 else it[it.size / 2] }
     } else {
         null
-    }
-
-    private fun validatePosition(position: Int): Int? {
-        return if (position in TRACK_X..TRACK_X + TRACK_W) {
-            position
-        } else {
-            null
-        }
     }
 
     /*
@@ -158,27 +149,25 @@ object Detector {
     Take median from history
     Return the fish and bar
      */
-    var historyBarCenters = ArrayDeque<Int>()
     suspend fun processFrame(bitmap: Bitmap) {
         withContext(Dispatchers.Default) {
             if (bitmap.height > bitmap.width) {
                 return@withContext
             }
 
-            val fishAndBars = mutableListOf<Pair<Int?, Pair<Int, Int>?>>()
+            val fishAndBars = mutableListOf<Pair<Fish?, Bar?>>()
             TRACK_SCAN_YS.forEach { scanY ->
-                val (fish, bar) = findFishAndBar(bitmap, scanY, historyBarCenters.lastOrNull())
-                fishAndBars += fish to bar
+                fishAndBars += findFishAndBar(
+                    bitmap,
+                    scanY,
+                    historyBarCenters.lastOrNull()
+                )
             }
 
-            val fish = takeMedian(fishAndBars.mapNotNull { it.first }
-                .sorted())?.let { validatePosition(it) }
+            val fish = takeMedian(fishAndBars.mapNotNull { it.first }.map { it.x }.sorted())
 
-            val barCenter = takeMedian(fishAndBars.mapNotNull { it.second }
-                .map { it.first + (it.second - it.first) / 2 })?.let {
-                validatePosition(it)
-            }
-            barCenter?.let { historyBarCenters.addLast(it) }
+            val barCenter = takeMedian(fishAndBars.mapNotNull { it.second }.map { it.center })
+            barCenter?.also { historyBarCenters.addLast(it) }
             if (historyBarCenters.size > SMOOTHING_FRAMES) {
                 historyBarCenters.removeFirst()
             }
