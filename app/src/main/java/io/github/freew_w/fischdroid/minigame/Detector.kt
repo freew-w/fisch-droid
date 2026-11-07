@@ -105,8 +105,7 @@ object Detector {
             }
 
             val centerColor = bitmap[barCenter, scanY]
-            val lum =
-                (Color.red(centerColor) + Color.green(centerColor) + Color.blue(centerColor)) / 3.0
+            val lum = luminance(centerColor)
             score += lum * 2.0
 
             if (score > bestScore) {
@@ -118,7 +117,14 @@ object Detector {
         return fish to bestBar
     }
 
-    fun takeMedian(list: List<Int>): Int? = if (list.isNotEmpty()) {
+    private fun luminance(pixel: Int): Int {
+        val r = (pixel shr 16) and 0xFF
+        val g = (pixel shr 8) and 0xFF
+        val b = pixel and 0xFF
+        return (r * 299 + g * 587 + b * 114) / 1000
+    }
+
+    private fun takeMedian(list: List<Int>): Int? = if (list.isNotEmpty()) {
         list.sorted().let {
             if (it.size % 2 == 0) (it[it.size / 2] + it[(it.size - 1) / 2]) / 2
             else it[it.size / 2]
