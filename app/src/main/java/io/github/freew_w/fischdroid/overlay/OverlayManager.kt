@@ -3,6 +3,8 @@ package io.github.freew_w.fischdroid.overlay
 import android.accessibilityservice.AccessibilityService
 import android.graphics.PixelFormat
 import android.view.WindowManager
+import io.github.freew_w.fischdroid.minigame.Detector.Bar
+import io.github.freew_w.fischdroid.minigame.Detector.Fish
 import io.github.freew_w.fischdroid.shake.Detector
 
 object OverlayManager {
@@ -30,7 +32,7 @@ object OverlayManager {
         windowManager.addView(overlayView, params)
     }
 
-    fun updateMinigame(fish: Int?, bar: Pair<Int, Int>?) {
+    fun updateMinigame(fish: Fish?, bar: Bar?) {
         overlayView?.updateMinigame(fish, bar)
     }
 

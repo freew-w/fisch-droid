@@ -9,8 +9,8 @@ import io.github.freew_w.fischdroid.minigame.Detector
 
 class OverlayView(context: Context) : View(context) {
     private var edges: List<Int>? = null
-    private var fish: Int? = null
-    private var bar: Pair<Int, Int>? = null
+    private var fish: Detector.Fish? = null
+    private var bar: Detector.Bar? = null
     private var shake: io.github.freew_w.fischdroid.shake.Detector.Button? = null
     private val drawY = Detector.TRACK_SCAN_YS[2].toFloat() - 150f
     private val fishPaint = Paint().apply { color = Color.RED; style = Paint.Style.FILL }
@@ -25,7 +25,7 @@ class OverlayView(context: Context) : View(context) {
     }
     private val shakeCenterPaint = Paint().apply { color = Color.CYAN; style = Paint.Style.FILL }
 
-    fun updateMinigame(fish: Int?, bar: Pair<Int, Int>?) {
+    fun updateMinigame(fish: Detector.Fish?, bar: Detector.Bar?) {
         this.fish = fish
         this.bar = bar
         invalidate()
@@ -45,11 +45,11 @@ class OverlayView(context: Context) : View(context) {
         super.onDraw(canvas)
 
         bar?.let {
-            canvas.drawRect(it.first.toFloat(), drawY, it.second.toFloat(), drawY + 10, barPaint)
+            canvas.drawRect(it.x1.toFloat(), drawY, it.x2.toFloat(), drawY + 10, barPaint)
         }
 
         fish?.let {
-            canvas.drawRect(it.toFloat(), drawY, it.toFloat() + 5f, drawY + 10, fishPaint)
+            canvas.drawRect(it.x.toFloat(), drawY, it.x.toFloat() + 5f, drawY + 10, fishPaint)
         }
 
         edges?.let {
