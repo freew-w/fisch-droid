@@ -44,7 +44,6 @@ class TapService : AccessibilityService() {
     fun press(x: Float, y: Float, duration: Long) {
         val tapPath = Path()
         tapPath.moveTo(x, y)
-        tapPath.lineTo(x, y + 1f)
 
         val stroke = GestureDescription.StrokeDescription(tapPath, 0L, duration)
 
