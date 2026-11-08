@@ -48,12 +48,16 @@ class ScreenCaptureService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForegroundWithNotification()
-
         if (intent?.getStringExtra("ACTION") == "STOP") {
-            stop()
+            if (session != null) {
+                stop()
+            } else {
+                stopSelf()
+            }
             return START_NOT_STICKY
         }
+
+        startForegroundWithNotification()
 
         val resultCode =
             intent?.getIntExtra("resultCode", Activity.RESULT_CANCELED) ?: Activity.RESULT_CANCELED
@@ -95,7 +99,7 @@ class ScreenCaptureService : Service() {
         session = CaptureSession(projection, reader, display)
         attachFrameListener(reader)
 
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

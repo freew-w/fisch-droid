@@ -73,7 +73,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.btnStopCapture).setOnClickListener {
-            startForegroundService(
+            startService(
                 Intent(this, ScreenCaptureService::class.java).putExtra(
                     "ACTION",
                     "STOP"

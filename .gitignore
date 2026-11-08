@@ -31,3 +31,4 @@ signing.properties
 # OS files
 .DS_Store
 Thumbs.db
+/note
