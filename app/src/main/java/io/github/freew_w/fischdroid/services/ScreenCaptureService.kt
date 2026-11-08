@@ -18,7 +18,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.createBitmap
 import androidx.window.layout.WindowMetricsCalculator
@@ -49,12 +48,16 @@ class ScreenCaptureService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForegroundWithNotification()
-
         if (intent?.getStringExtra("ACTION") == "STOP") {
-            stop()
+            if (session != null) {
+                stop()
+            } else {
+                stopSelf()
+            }
             return START_NOT_STICKY
         }
+
+        startForegroundWithNotification()
 
         val resultCode =
             intent?.getIntExtra("resultCode", Activity.RESULT_CANCELED) ?: Activity.RESULT_CANCELED
