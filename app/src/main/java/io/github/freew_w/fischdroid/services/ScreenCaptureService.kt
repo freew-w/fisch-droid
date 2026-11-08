@@ -99,7 +99,7 @@ class ScreenCaptureService : Service() {
         session = CaptureSession(projection, reader, display)
         attachFrameListener(reader)
 
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
