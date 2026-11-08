@@ -18,11 +18,10 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.createBitmap
 import androidx.window.layout.WindowMetricsCalculator
-import io.github.freew_w.fischdroid.minigame.Detector
+import io.github.freew_w.fischdroid.minigame.Controller
 import io.github.freew_w.fischdroid.shake.Clicker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -197,7 +196,7 @@ class ScreenCaptureService : Service() {
                 image.close()
 
                 Clicker.processFrame(frameBitmap, frameWidth, frameHeight)
-                Detector.processFrame(frameBitmap)
+                Controller.processFrame(frameBitmap)
             } finally {
                 runCatching { image.close() }
                 isProcessingFrame = false

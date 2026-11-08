@@ -4,9 +4,6 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.get
-import io.github.freew_w.fischdroid.overlay.OverlayManager
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -33,7 +30,9 @@ object Detector {
     private const val CONTROL = 0.15
     private const val EXPECTED_BAR_WIDTH = ((TRACK_W - 5) * (0.3 + CONTROL) + 1).toInt()
     private const val WIDTH_TOLERANCE = 4
-    private const val SMOOTHING_FRAMES = 10
+
+    const val BAR_CENTER_MIN = TRACK_X + EXPECTED_BAR_WIDTH / 2f
+    const val BAR_CENTER_MAX = TRACK_X + TRACK_W - 1 - EXPECTED_BAR_WIDTH / 2f
 
     private val lab1 = DoubleArray(3)
     private val lab2 = DoubleArray(3)
@@ -149,34 +148,23 @@ object Detector {
     Take median from history
     Return the fish and bar
      */
-    suspend fun processFrame(bitmap: Bitmap) {
-        withContext(Dispatchers.Default) {
-            if (bitmap.height > bitmap.width) {
-                return@withContext
-            }
-
-            val fishAndBars = mutableListOf<Pair<Fish?, Bar?>>()
-            TRACK_SCAN_YS.forEach { scanY ->
-                fishAndBars += findFishAndBar(
-                    bitmap,
-                    scanY,
-                    historyBarCenters.lastOrNull()
-                )
-            }
-
-            val fish = takeMedian(fishAndBars.mapNotNull { it.first }.map { it.x }.sorted())
-
-            val barCenter = takeMedian(fishAndBars.mapNotNull { it.second }.map { it.center })
-            barCenter?.also { historyBarCenters.addLast(it) }
-            if (historyBarCenters.size > SMOOTHING_FRAMES) {
-                historyBarCenters.removeFirst()
-            }
-            val bar =
-                takeMedian(historyBarCenters.sorted())?.let { it - EXPECTED_BAR_WIDTH / 2 to it + EXPECTED_BAR_WIDTH / 2 }
-
-            withContext(Dispatchers.Main) {
-                OverlayManager.updateMinigame(fish, bar)
-            }
+    fun detect(bitmap: Bitmap): Pair<Fish?, Bar?> {
+        val fishAndBars = mutableListOf<Pair<Fish?, Bar?>>()
+        TRACK_SCAN_YS.forEach { scanY ->
+            fishAndBars += findFishAndBar(
+                bitmap, scanY, historyBarCenters.lastOrNull()
+            )
         }
+
+        val fish =
+            takeMedian(fishAndBars.mapNotNull { it.first }.map { it.x }.sorted())?.let { Fish(it) }
+
+        val bar = takeMedian(fishAndBars.mapNotNull { it.second }.map { it.center })?.let {
+            Bar(
+                it - EXPECTED_BAR_WIDTH / 2, it + EXPECTED_BAR_WIDTH / 2
+            )
+        }
+
+        return fish to bar
     }
 }
