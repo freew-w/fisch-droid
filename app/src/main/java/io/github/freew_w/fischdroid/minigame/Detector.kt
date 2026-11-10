@@ -5,6 +5,8 @@ import android.graphics.Color
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.get
 import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sqrt
 
 object Detector {
@@ -27,13 +29,17 @@ object Detector {
         TRACK_Y + TRACK_H - 2
     )
 
-    private const val CONTROL = 0.15
+    private const val CONTROL = 0.15f
     private const val EXPECTED_BAR_WIDTH =
         (TRACK_W * (0.3f + CONTROL) + 1).toInt() // Plus one to round up
     private const val WIDTH_TOLERANCE = 4
 
-    const val BAR_CENTER_MIN = TRACK_X + EXPECTED_BAR_WIDTH / 2f
-    const val BAR_CENTER_MAX = TRACK_X + TRACK_W - 1 - EXPECTED_BAR_WIDTH / 2f
+    private const val NEXT_BAR_SCAN_RANGE_OFFSET = (EXPECTED_BAR_WIDTH * 0.7f).toInt()
+    private const val NEXT_FISH_SCAN_RANGE_OFFSET = 20
+    private var barScanX1 = TRACK_X1_ITER
+    private var barScanX2 = TRACK_X2_ITER
+    private var fishScanX1 = TRACK_X1_ITER
+    private var fishScanX2 = TRACK_X2_ITER
 
     private val lab1 = DoubleArray(3)
     private val lab2 = DoubleArray(3)
@@ -77,16 +83,19 @@ object Detector {
         var fish: Fish? = null
         val edges = mutableListOf<Int>()
 
-        for (x in TRACK_X1_ITER + 1..TRACK_X2_ITER) {
+        for (x in fishScanX1..fishScanX2) {
+            val color = bitmap[x, scanY]
+            if (colorIntWithinRgbRange(color, 67, 75, 91, 5)) {
+                fish = Fish(x)
+            }
+        }
+
+        for (x in barScanX1 + 1..barScanX2) {
             val colorLeft = bitmap[x - 1, scanY]
             val colorRight = bitmap[x, scanY]
             val diff = getColorDistance(colorLeft, colorRight)
-            if (diff > 10f) {
+            if (diff > 10.0) {
                 edges.add(x)
-            }
-
-            if (colorIntWithinRgbRange(colorRight, 67, 75, 91, 5)) {
-                fish = Fish(x)
             }
         }
 
@@ -159,6 +168,15 @@ object Detector {
 
         val fish =
             takeMedian(fishAndBars.mapNotNull { it.first }.map { it.x }.sorted())?.let { Fish(it) }
+        if (fish == null) {
+            fishScanX1 = TRACK_X1_ITER
+            fishScanX2 = TRACK_X2_ITER
+        } else {
+            fishScanX1 = fish.x - NEXT_FISH_SCAN_RANGE_OFFSET
+            fishScanX1 = max(fishScanX1, TRACK_X1_ITER)
+            fishScanX2 = fish.x + NEXT_FISH_SCAN_RANGE_OFFSET
+            fishScanX2 = min(fishScanX2, TRACK_X2_ITER)
+        }
 
         val bar = takeMedian(fishAndBars.mapNotNull { it.second }.map { it.center })?.let {
             Bar(
@@ -166,6 +184,15 @@ object Detector {
             )
         }
         lastBarCenter = bar?.center
+        if (bar == null) {
+            barScanX1 = TRACK_X1_ITER
+            barScanX2 = TRACK_X2_ITER
+        } else {
+            barScanX1 = bar.center - NEXT_BAR_SCAN_RANGE_OFFSET
+            barScanX1 = max(barScanX1, TRACK_X1_ITER)
+            barScanX2 = bar.center + NEXT_BAR_SCAN_RANGE_OFFSET
+            barScanX2 = min(barScanX2, TRACK_X2_ITER)
+        }
 
         return fish to bar
     }
