@@ -37,7 +37,7 @@ object Detector {
 
     private val lab1 = DoubleArray(3)
     private val lab2 = DoubleArray(3)
-    private var historyBarCenters = ArrayDeque<Int>()
+    private var lastBarCenter: Int? = null
 
     private fun colorIntWithinRgbRange(
         color: Int, r: Int, g: Int, b: Int, threshold: Int
@@ -153,7 +153,7 @@ object Detector {
         val fishAndBars = mutableListOf<Pair<Fish?, Bar?>>()
         TRACK_SCAN_YS.forEach { scanY ->
             fishAndBars += findFishAndBar(
-                bitmap, scanY, historyBarCenters.lastOrNull()
+                bitmap, scanY, lastBarCenter
             )
         }
 
@@ -165,6 +165,7 @@ object Detector {
                 it - EXPECTED_BAR_WIDTH / 2, it + EXPECTED_BAR_WIDTH / 2
             )
         }
+        lastBarCenter = bar?.center
 
         return fish to bar
     }
