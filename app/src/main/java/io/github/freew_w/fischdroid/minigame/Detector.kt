@@ -15,6 +15,15 @@ object Detector {
         val center = (x1 + x2) / 2
     }
 
+    private data class PointAndColor(val x: Int, val y: Int, val r: Int, val g: Int, val b: Int)
+
+    private val LIST_OF_COINS_POINT_COLOR = listOf(
+        PointAndColor(1846, 973, 255, 253, 228),
+        PointAndColor(1872, 960, 255, 253, 228),
+        PointAndColor(1852, 980, 255, 253, 228),
+        PointAndColor(1872, 979, 255, 253, 228),
+    )
+
     private const val TRACK_X = 564
     private const val TRACK_Y = 842
     private const val TRACK_W = 764
@@ -195,5 +204,18 @@ object Detector {
         }
 
         return fish to bar
+    }
+
+    fun notInMinigame(bitmap: Bitmap): Boolean {
+        var match = 0
+        for ((x, y, r, g, b) in LIST_OF_COINS_POINT_COLOR) {
+            if (colorIntWithinRgbRange(
+                    bitmap[x, y], r, g, b, 5
+                )
+            ) {
+                match++
+            }
+        }
+        return match >= 3
     }
 }

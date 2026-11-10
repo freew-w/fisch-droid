@@ -11,7 +11,9 @@ private const val HOLD_X = 1100f
 private const val HOLD_Y = 600f
 
 object Controller {
-    suspend fun processFrame(bitmap: Bitmap) {
+    suspend fun processFrame(bitmap: Bitmap): Boolean {
+        var detected = false
+
         withContext(Dispatchers.Default) {
             if (bitmap.height > bitmap.width) {
                 TapService.instance?.setHolding(false, HOLD_X, HOLD_Y)
@@ -26,6 +28,7 @@ object Controller {
             }
 
             val hold = if (fish != null && bar != null) {
+                detected = true
                 ControlLoop.decide(fish, bar, now)
             } else {
                 null
@@ -43,5 +46,6 @@ object Controller {
                 else -> service?.setHolding(hold, HOLD_X, HOLD_Y)
             }
         }
+        return detected
     }
 }

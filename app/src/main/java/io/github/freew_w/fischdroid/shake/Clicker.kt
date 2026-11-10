@@ -16,7 +16,9 @@ object Clicker {
 
     private var lastRunAt = 0L
 
-    suspend fun processFrame(bitmap: Bitmap, width: Int, height: Int) {
+    suspend fun processFrame(bitmap: Bitmap, width: Int, height: Int): Boolean {
+        var detected = false
+
         withContext(Dispatchers.Default) {
             val now = SystemClock.elapsedRealtime()
             if (now - lastRunAt < INTERVAL_MS) return@withContext
@@ -27,11 +29,13 @@ object Clicker {
                 OverlayManager.updateShake(button)
             }
             if (button == null) return@withContext
+            detected = true
 
             val service = TapService.instance ?: return@withContext
 
             Log.d(TAG, "tapping shake button at (${button.centerX}, ${button.centerY})")
             service.press(button.centerX.toFloat(), button.centerY.toFloat(), TAP_DURATION_MS)
         }
+        return detected
     }
 }
