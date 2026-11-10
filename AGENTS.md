@@ -62,17 +62,16 @@ AndroidX, not declared in `app/build.gradle.kts`.
   portrait frames and drives `minigame/ControlLoop.kt`: the bar is a double integrator (constant
   acceleration right while held, left while released, inelastic track bounds). The loop is a
   continuous PD controller, `u = POSITION_GAIN * (fishX - barX) - VELOCITY_GAIN * (barV - fishV)`;
-  `u > 0` holds and `u < 0` releases, with a small hysteresis band. An alpha-beta observer estimates
-  bar/fish position and velocity through the previous hold state. There is a three-sample warm-up.
+  `u > 0` holds and `u < 0` releases, with a small hysteresis band. Positions are used raw from
+  the detector and velocities are differences between consecutive detections; there is no motion
+  model or prediction. There is a three-sample warm-up.
   `TapService.setHolding` implements holds as one continued accessibility stroke (`willContinue`
   plus `continueStroke` in 20 ms segments), so the controller can release on any frame; `press` is
   still the finite-tap API used by `MainActivity` and `shake/Clicker`. A segment that emits no
   MotionEvent is treated as a failed gesture by Android and cancelled, so hold segments alternate
   the endpoint by 1 px; releasing dispatches a short final segment with `willContinue = false` to
-  lift the pointer. No bar smoothing is applied
-  in `Detector` (`SMOOTHING_FRAMES = 1`) because the observer already filters, and median lag breaks
-  the motion model. `ControlLoopTest` runs the loop against a simulated bar with segment-quantized
-  releases.
+  lift the pointer. No bar smoothing is applied in `Detector` (`SMOOTHING_FRAMES = 1`).
+  `ControlLoopTest` runs the loop against a simulated bar with segment-quantized releases.
 - Keep R8 keep rules in `app/src/main/keepRules/*.keep` (AGP 9 location), not a
   `proguard-rules.pro`. Release builds enable R8 optimization scoped to `androidx.**`, `kotlin.**`,
   and `kotlinx.**`.
