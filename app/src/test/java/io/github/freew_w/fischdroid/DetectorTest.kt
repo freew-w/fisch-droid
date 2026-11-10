@@ -42,7 +42,8 @@ class DetectorTest {
     @Test
     fun findsShakeButtonInEveryDeviceCapture() {
         for (sample in samples) {
-            val button = Detector.find(pasteIntoCanvas(load(sample.file)), canvasWidth, canvasHeight)
+            val button =
+                Detector.find(pasteIntoCanvas(load(sample.file)), canvasWidth, canvasHeight)
             assertNotNull("${sample.file} was not detected", button)
 
             assertTrue(

@@ -60,14 +60,19 @@ AndroidX, not declared in `app/build.gradle.kts`.
   device/emulator.
 - `minigame/Controller.kt` is called from `ScreenCaptureService` after `shake/Clicker`. It ignores
   portrait frames and drives `minigame/ControlLoop.kt`: the bar is a double integrator (constant
-  acceleration right while held, left while released, inelastic track bounds). The loop is a port
-  of the root `main.js` controller: an alpha-beta observer estimates bar/fish position and
-  velocity through the last action, then every candidate pulse (hold 30–500 ms, release 30–60 ms)
-  is simulated together with a short terminal braking phase, and the cheapest outcome (squared
-  distance outside the deadband, velocity error, wall contact/bounce) is executed. `accelHold` and
-  `accelRelease` are adapted from observed velocity changes; there is a 1.4 s warm-up before the
-  first action. Press latency and loop overhead are not modelled. `ControlLoopTest` runs the loop
-  against a simulated bar.
+  acceleration right while held, left while released, inelastic track bounds). The loop is a
+  continuous PD controller, `u = POSITION_GAIN * (fishX - barX) - VELOCITY_GAIN * (barV - fishV)`;
+  `u > 0` holds and `u < 0` releases, with a small hysteresis band. An alpha-beta observer estimates
+  bar/fish position and velocity through the previous hold state. There is a three-sample warm-up.
+  `TapService.setHolding` implements holds as one continued accessibility stroke (`willContinue`
+  plus `continueStroke` in 20 ms segments), so the controller can release on any frame; `press` is
+  still the finite-tap API used by `MainActivity` and `shake/Clicker`. A segment that emits no
+  MotionEvent is treated as a failed gesture by Android and cancelled, so hold segments alternate
+  the endpoint by 1 px; releasing dispatches a short final segment with `willContinue = false` to
+  lift the pointer. No bar smoothing is applied
+  in `Detector` (`SMOOTHING_FRAMES = 1`) because the observer already filters, and median lag breaks
+  the motion model. `ControlLoopTest` runs the loop against a simulated bar with segment-quantized
+  releases.
 - Keep R8 keep rules in `app/src/main/keepRules/*.keep` (AGP 9 location), not a
   `proguard-rules.pro`. Release builds enable R8 optimization scoped to `androidx.**`, `kotlin.**`,
   and `kotlinx.**`.
