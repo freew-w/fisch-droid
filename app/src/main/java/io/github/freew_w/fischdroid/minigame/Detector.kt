@@ -28,7 +28,8 @@ object Detector {
     )
 
     private const val CONTROL = 0.15
-    private const val EXPECTED_BAR_WIDTH = ((TRACK_W - 5) * (0.3 + CONTROL) + 1).toInt()
+    private const val EXPECTED_BAR_WIDTH =
+        (TRACK_W * (0.3f + CONTROL) + 1).toInt() // Plus one to round up
     private const val WIDTH_TOLERANCE = 4
 
     const val BAR_CENTER_MIN = TRACK_X + EXPECTED_BAR_WIDTH / 2f
