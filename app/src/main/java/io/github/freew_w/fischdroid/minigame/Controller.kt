@@ -14,10 +14,7 @@ object Controller {
     suspend fun processFrame(bitmap: Bitmap) {
         withContext(Dispatchers.Default) {
             if (bitmap.height > bitmap.width) {
-                withContext(Dispatchers.Main) {
-                    ControlLoop.reset()
-                    TapService.instance?.setHolding(false, HOLD_X, HOLD_Y)
-                }
+                TapService.instance?.setHolding(false, HOLD_X, HOLD_Y)
                 return@withContext
             }
 
@@ -34,18 +31,16 @@ object Controller {
                 null
             }
 
-            withContext(Dispatchers.Main) {
-                val service = TapService.instance
-                when {
-                    fish == null || bar == null -> {
-                        ControlLoop.reset()
-                        service?.setHolding(false, HOLD_X, HOLD_Y)
-                    }
-
-                    hold == null -> service?.setHolding(false, HOLD_X, HOLD_Y)
-
-                    else -> service?.setHolding(hold, HOLD_X, HOLD_Y)
+            val service = TapService.instance
+            when {
+                fish == null || bar == null -> {
+                    ControlLoop.reset()
+                    service?.setHolding(false, HOLD_X, HOLD_Y)
                 }
+
+                hold == null -> service?.setHolding(false, HOLD_X, HOLD_Y)
+
+                else -> service?.setHolding(hold, HOLD_X, HOLD_Y)
             }
         }
     }

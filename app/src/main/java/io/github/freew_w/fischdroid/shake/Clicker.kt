@@ -31,13 +31,7 @@ object Clicker {
             val service = TapService.instance ?: return@withContext
 
             Log.d(TAG, "tapping shake button at (${button.centerX}, ${button.centerY})")
-            withContext(Dispatchers.Main) {
-                service.press(
-                    button.centerX.toFloat(),
-                    button.centerY.toFloat(),
-                    TAP_DURATION_MS
-                )
-            }
+            service.press(button.centerX.toFloat(), button.centerY.toFloat(), TAP_DURATION_MS)
         }
     }
 }
