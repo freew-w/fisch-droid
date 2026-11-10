@@ -15,42 +15,30 @@ class TapService : AccessibilityService() {
         @Volatile
         var instance: TapService? = null
             private set
+
+        private const val STROKE_DURATION_MS = 20L
+        private const val RELEASE_DURATION_MS = 1L
+        private const val HOLD_JITTER_PX = 1f
     }
 
-    private var holding = false
+    private var holdRequested = false
     private var holdX = 0f
     private var holdY = 0f
-    private var strokeX = 0f
-    private var strokeY = 0f
-    private var stroke: GestureDescription.StrokeDescription? = null
-    private var runningGesture: GestureDescription? = null
+    private var strokeEndX = 0f
+    private var strokeEndY = 0f
+    private var previousStroke: GestureDescription.StrokeDescription? = null
+    private var previousGesture: GestureDescription? = null
 
     private val holdCallback = object : GestureResultCallback() {
         override fun onCompleted(gestureDescription: GestureDescription?) {
-            if (gestureDescription !== runningGesture) return
-            runningGesture = null
-
-            val previous = stroke
-            when {
-                holding -> {
-                    if (previous == null || !previous.willContinue()) {
-                        stroke = null
-                        strokeX = holdX
-                        strokeY = holdY
-                    }
-                    startHoldSegment()
-                }
-
-                previous != null && previous.willContinue() -> endHoldSegment()
-
-                else -> clearHold()
-            }
+            if (gestureDescription !== previousGesture) return
+            if (holdRequested) sendHoldSegment() else sendEndSegment()
         }
 
         override fun onCancelled(gestureDescription: GestureDescription?) {
-            if (gestureDescription !== runningGesture) return
+            if (gestureDescription !== previousGesture) return
             Log.w(TAG, "hold segment cancelled")
-            clearHold()
+            resetHold()
         }
     }
 
@@ -67,100 +55,101 @@ class TapService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         Log.i(TAG, "onUnbind")
-        clearHold()
+        resetHold()
         instance = null
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         Log.i(TAG, "onDestroy")
-        clearHold()
+        resetHold()
         OverlayManager.hide(this)
         instance = null
         super.onDestroy()
     }
 
     fun press(x: Float, y: Float, duration: Long) {
-        clearHold()
+        resetHold()
 
-        val tapPath = Path()
-        tapPath.moveTo(x, y)
-
+        val tapPath = Path().apply { moveTo(x, y) }
         val stroke = GestureDescription.StrokeDescription(tapPath, 0L, duration)
-
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
 
-        val accepted = dispatchGesture(
-            gesture, object : GestureResultCallback() {
+        if (!dispatchGesture(gesture, object : GestureResultCallback() {
                 override fun onCompleted(gestureDescription: GestureDescription?) {
-                    Log.d(TAG, "press: COMPLETED at ($x, $y) for ${duration}ms")
+                    Log.i(TAG, "press completed at $x, $y")
                 }
 
                 override fun onCancelled(gestureDescription: GestureDescription?) {
-                    Log.w(TAG, "press: CANCELLED at ($x, $y)")
+                    Log.i(TAG, "press at $x, $y cancelled")
                 }
-            }, null
-        )
-
-        if (!accepted) {
-            Log.e(TAG, "press: dispatchGesture was REJECTED by the system.")
+            }, null)) {
+            Log.e(TAG, "press: dispatchGesture was rejected by the system.")
         }
     }
 
     fun setHolding(hold: Boolean, x: Float, y: Float) {
-        if (holding == hold) return
-        holding = hold
-
+        if (hold == holdRequested) return
+        holdRequested = hold
         if (hold) {
             holdX = x
             holdY = y
-            if (runningGesture == null) {
-                stroke = null
-                strokeX = x
-                strokeY = y
-                startHoldSegment()
-            }
+            if (previousGesture != null) return
+            Log.i(TAG, "sending a fresh hold segment")
+            sendHoldSegment()
         }
     }
 
-    private fun startHoldSegment() {
-        val targetX = if (strokeX == holdX) holdX + 1f else holdX
-        val path = Path().apply {
-            moveTo(strokeX, strokeY)
-            lineTo(targetX, holdY)
-        }
-        val next = stroke?.continueStroke(path, 0L, 20L, true)
-            ?: GestureDescription.StrokeDescription(path, 0L, 20L, true)
-
-        strokeX = targetX
-        strokeY = holdY
-        dispatchHoldSegment(next)
-    }
-
-    private fun endHoldSegment() {
-        val previous = stroke ?: run {
-            clearHold()
+    private fun sendHoldSegment() {
+        val previous = previousStroke
+        if (previous != null && !previous.willContinue()) {
+            Log.i(TAG, "cannot continue a hold segment")
+            resetHold()
             return
         }
-        val path = Path().apply { moveTo(strokeX, strokeY) }
-        val next = previous.continueStroke(path, 0L, 1L, false)
-        dispatchHoldSegment(next)
+
+        Log.i(TAG, "sending a hold segment")
+        val targetX = if (strokeEndX == holdX) holdX + HOLD_JITTER_PX else holdX
+        val path = Path().apply {
+            moveTo(strokeEndX, strokeEndY)
+            lineTo(targetX, holdY)
+        }
+        val next = previous?.continueStroke(path, 0L, STROKE_DURATION_MS, true)
+            ?: GestureDescription.StrokeDescription(path, 0L, STROKE_DURATION_MS, true)
+
+        strokeEndX = targetX
+        strokeEndY = holdY
+        dispatchSegment(next)
     }
 
-    private fun dispatchHoldSegment(next: GestureDescription.StrokeDescription) {
+    private fun sendEndSegment() {
+        val previous = previousStroke
+        if (previous == null || !previous.willContinue()) {
+            Log.i(TAG, "cannot end a segment")
+            resetHold()
+            return
+        }
+
+        Log.i(TAG, "sending an end segment")
+        val path = Path().apply { moveTo(strokeEndX, strokeEndY) }
+        val next = previous.continueStroke(path, 0L, RELEASE_DURATION_MS, false)
+        dispatchSegment(next)
+    }
+
+    private fun dispatchSegment(next: GestureDescription.StrokeDescription) {
         val gesture = GestureDescription.Builder().addStroke(next).build()
-        stroke = next
-        runningGesture = gesture
+        previousStroke = next
+        previousGesture = gesture
 
         if (!dispatchGesture(gesture, holdCallback, null)) {
-            Log.e(TAG, "hold: dispatchGesture was REJECTED by the system.")
-            clearHold()
+            Log.e(TAG, "hold: dispatchGesture was rejected by the system.")
+            resetHold()
         }
     }
 
-    private fun clearHold() {
-        holding = false
-        stroke = null
-        runningGesture = null
+    private fun resetHold() {
+        holdRequested = false
+        previousStroke = null
+        previousGesture = null
     }
 }
