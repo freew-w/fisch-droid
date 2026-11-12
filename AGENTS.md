@@ -1,15 +1,15 @@
 # AGENTS.md
 
 FischDroid is a single-module Android app (`:app`) that automates a fishing minigame:
-MediaProjection captures frames, `Detector` locates the fish/bar pixels, an accessibility overlay
-draws them, and `TapService` dispatches gestures. There is no README or CI; Gradle is the source of
-truth.
+MediaProjection captures frames, `Orchestrator` selects auto-cast/shake/minigame behavior, an
+accessibility overlay draws detections, and `TapService` dispatches gestures. There is no README
+or CI; Gradle and the source are the source of truth.
 
 Package/application ID: `io.github.freew_w.fischdroid`. UI is classic Views/XML, not Compose.
 
-Source layout: the root package holds `MainActivity`; `services/` holds `ScreenCaptureService` and
-`TapService`; `minigame/` holds `Detector`, `ControlLoop`, and `Controller`; `overlay/`
-holds `OverlayManager`/`OverlayView`; `shake/` holds `Detector`/`Clicker`. Note that both
+Source layout: the root package holds `MainActivity` and `Orchestrator`; `services/` holds
+`ScreenCaptureService`/`TapService`; `minigame/` holds `Detector`/`Controller`/`ControlLoop`;
+`overlay/` holds `OverlayManager`/`OverlayView`; `shake/` holds `Detector`/`Clicker`. Both
 `minigame/` and `shake/` define a `Detector`, so refer to them by package.
 
 ## Build and verify
@@ -17,8 +17,8 @@ holds `OverlayManager`/`OverlayView`; `shake/` holds `Detector`/`Clicker`. Note 
 - `./gradlew :app:assembleDebug` — debug APK at `app/build/outputs/apk/debug/app-debug.apk`.
 - `./gradlew :app:testDebugUnitTest` — host unit tests.
 - One test class:
-  `./gradlew :app:testDebugUnitTest --tests "io.github.freew_w.fischdroid.DetectorTest"`.
-- `./gradlew :app:lintDebug` — Android lint; currently passes.
+  `./gradlew :app:testDebugUnitTest --tests "io.github.freew_w.fischdroid.ExampleUnitTest"`.
+- `./gradlew :app:lintDebug` — Android lint.
 - Device tasks: `./gradlew :app:installDebug`, `./gradlew :app:connectedDebugAndroidTest` (needs a
   device/emulator).
 
@@ -32,46 +32,32 @@ AndroidX, not declared in `app/build.gradle.kts`.
 
 ## Runtime wiring and gotchas
 
-- `MainActivity` requests the accessibility service, starts/stops `ScreenCaptureService`, and
-  performs a hardcoded test tap at `(518, 910)` after 3 seconds. On Android 13+ it requests
-  `POST_NOTIFICATIONS` before asking for MediaProjection consent; capture proceeds even if the
-  permission is denied. Do not assume an automatic detection→tap loop exists for the minigame; the
-  only automatic tapping is the shake button described below.
-- `shake/Detector.kt` finds the post-cast "SHAKE" button with no per-device calibration: five
-  equal-height white glyphs in a roughly 4:1 row, verified against the bright ring and dark disk
-  around them. Its thresholds are all ratios of the frame/glyph size, so resolution, UI scale and
-  background do not matter. `shake/Clicker.kt` taps the detected center at most every 100 ms while
-  the button is visible, which also stops on its own once the minigame starts. The in-game jump
-  button is also a ringed dark disk, but it has an arrow instead of the glyphs and is rejected.
-  Reference crops live in the gitignored `Pictures/Shakes/`; the host tests in
-  `app/src/test/java/io/github/freew_w/fischdroid/DetectorTest.kt` use copies in
-  `app/src/test/resources/shake/`. While detected, `overlay/OverlayView.kt` draws a cyan ring and
-  center dot.
-- `ScreenCaptureService` must be started with the MediaProjection result token returned to
-  `MainActivity`; it cannot be launched usefully from adb/CLI alone. It runs as a media-projection
-  foreground service and captures through `ImageReader`. Sending an intent with the extra
-  `ACTION=STOP` stops an active capture and removes the notification.
-- The accessibility service (`TapService`) must be enabled manually in system settings before the
-  overlay or gestures work. `overlay/OverlayManager.kt` uses `TYPE_ACCESSIBILITY_OVERLAY`; there is
-  no `SYSTEM_ALERT_WINDOW` permission.
-- `minigame/Detector.kt` scans fixed screen rows for the fish line and the controlled bar, and its
-  scan coordinates, colors, and expected bar width are calibrated to specific screen geometry.
-  Recalibrate its constants and the tap coordinates in `minigame/Controller.kt` for a different
-  device/emulator.
-- `minigame/Controller.kt` is called from `ScreenCaptureService` after `shake/Clicker`. It ignores
-  portrait frames and drives `minigame/ControlLoop.kt`: the bar is a double integrator (constant
-  acceleration right while held, left while released, inelastic track bounds). The loop is a
-  continuous PD controller, `u = POSITION_GAIN * (fishX - barX) - VELOCITY_GAIN * (barV - fishV)`;
-  `u > 0` holds and `u < 0` releases, with a small hysteresis band. Positions are used raw from
-  the detector and velocities are differences between consecutive detections; there is no motion
-  model or prediction. There is a three-sample warm-up.
-  `TapService.setHolding` implements holds as one continued accessibility stroke (`willContinue`
-  plus `continueStroke` in 20 ms segments), so the controller can release on any frame; `press` is
-  still the finite-tap API used by `MainActivity` and `shake/Clicker`. A segment that emits no
-  MotionEvent is treated as a failed gesture by Android and cancelled, so hold segments alternate
-  the endpoint by 1 px; releasing dispatches a short final segment with `willContinue = false` to
-  lift the pointer. No bar smoothing is applied in `Detector` (`SMOOTHING_FRAMES = 1`).
-  `ControlLoopTest` runs the loop against a simulated bar with segment-quantized releases.
+- `MainActivity` immediately requests `POST_NOTIFICATIONS` on Android 13+, then MediaProjection
+  consent on launch; accepting starts `ScreenCaptureService` and automation. The buttons also open
+  accessibility settings, perform a hardcoded test tap at `(518, 910)`, request capture again, or
+  send `ACTION=STOP` to stop capture and remove the notification.
+- `Orchestrator` is the per-frame pipeline entry point. When `minigame/Detector.notInMinigame`
+  matches 3 of 4 hardcoded coin pixels, it taps `(1100, 600)` for 500 ms at most once per second and
+  runs `shake/Clicker`; otherwise it runs `minigame/Controller`.
+- `shake/Detector` is calibration-free: it looks for five equal-height white glyphs in a roughly
+  4:1 row inside a bright ring and dark disk, rejecting the jump button's arrow. `shake/Clicker`
+  detects at most every 100 ms and taps the button center for 40 ms while `Orchestrator` routes
+  non-minigame frames. It returns null for portrait frames; the overlay draws a cyan ring.
+- `minigame/Controller` releases the hold and returns on portrait frames, otherwise detects the
+  fish/bar and drives `minigame/ControlLoop`. The loop is a raw PD controller:
+  `u = 4.0 * (fishX - barX) - 3.2 * (barV - fishV)`, holding when `u > 50` or when already holding
+  and `u > -50`, with a 3-sample warm-up and 500 ms reset. There is no bar smoothing or prediction.
+- `TapService.setHolding` holds via one continued accessibility stroke in 20 ms segments, alternating
+  the endpoint by 1 px because zero-motion segments are cancelled; release sends a final 1 ms
+  segment with `willContinue = false`. `press` remains the finite-tap API used by `MainActivity`,
+  `shake/Clicker`, and `Orchestrator`.
+- Detection and gesture coordinates are calibrated to a specific landscape screen. Recalibrate
+  `TRACK_*`/coin pixels in `minigame/Detector.kt`, `HOLD_X`/`HOLD_Y` in `minigame/Controller.kt`,
+  and the cast/test taps in `Orchestrator.kt`/`MainActivity.kt` for another device. Portrait capture
+  is only partially handled: `notInMinigame` runs before `Controller`'s orientation guard.
+- The accessibility service (`TapService`) must be enabled manually before the overlay or gestures
+  work. `overlay/OverlayManager.kt` uses `TYPE_ACCESSIBILITY_OVERLAY`; there is no
+  `SYSTEM_ALERT_WINDOW` permission.
 - Keep R8 keep rules in `app/src/main/keepRules/*.keep` (AGP 9 location), not a
   `proguard-rules.pro`. Release builds enable R8 optimization scoped to `androidx.**`, `kotlin.**`,
   and `kotlinx.**`.
@@ -82,9 +68,9 @@ AndroidX, not declared in `app/build.gradle.kts`.
 
 - `ScreenCaptureService` has no built-in frame dump. Add temporary debug saving when needed and
   remove it before committing.
-- Repo-root `Pictures/` is gitignored and holds reference captures (portrait and landscape, several
-  resolutions) useful for calibrating `Detector`. These are development references, not runtime
-  output.
-- `DetectorTest` is a real host test over the `app/src/test/resources/shake/` crops.
-  `ExampleUnitTest`/`ExampleInstrumentedTest` are placeholders; capture, minigame detection,
-  overlay, and gestures still need device verification.
+- The only committed detection fixtures are `app/src/test/resources/shake/`. Repo-root `Pictures/`
+  is gitignored and may be absent; it is not runtime output.
+- Only `ExampleUnitTest` and `ExampleInstrumentedTest` currently exist; there are no detector or
+  control-loop tests. `shake/Detector.find(IntArray, width, height)` is pure JVM and testable
+  without Android; `minigame/Detector` depends on Android `Bitmap`/`ColorUtils`. Capture, control,
+  overlay, and gesture behavior still need device verification.
