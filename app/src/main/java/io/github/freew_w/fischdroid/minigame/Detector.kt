@@ -4,10 +4,9 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.get
-import io.github.freew_w.fischdroid.overlay.OverlayManager
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sqrt
 
 object Detector {
@@ -15,6 +14,15 @@ object Detector {
     data class Bar(val x1: Int, val x2: Int) {
         val center = (x1 + x2) / 2
     }
+
+    private data class PointAndColor(val x: Int, val y: Int, val r: Int, val g: Int, val b: Int)
+
+    private val LIST_OF_COINS_POINT_COLOR = listOf(
+        PointAndColor(1846, 973, 255, 253, 228),
+        PointAndColor(1872, 960, 255, 253, 228),
+        PointAndColor(1852, 980, 255, 253, 228),
+        PointAndColor(1872, 979, 255, 253, 228),
+    )
 
     private const val TRACK_X = 564
     private const val TRACK_Y = 842
@@ -30,14 +38,21 @@ object Detector {
         TRACK_Y + TRACK_H - 2
     )
 
-    private const val CONTROL = 0.15
-    private const val EXPECTED_BAR_WIDTH = ((TRACK_W - 5) * (0.3 + CONTROL) + 1).toInt()
+    private const val CONTROL = 0.15f
+    private const val EXPECTED_BAR_WIDTH =
+        (TRACK_W * (0.3f + CONTROL) + 1).toInt() // Plus one to round up
     private const val WIDTH_TOLERANCE = 4
-    private const val SMOOTHING_FRAMES = 10
+
+    private const val NEXT_BAR_SCAN_RANGE_OFFSET = (EXPECTED_BAR_WIDTH * 0.7f).toInt()
+    private const val NEXT_FISH_SCAN_RANGE_OFFSET = 20
+    private var barScanX1 = TRACK_X1_ITER
+    private var barScanX2 = TRACK_X2_ITER
+    private var fishScanX1 = TRACK_X1_ITER
+    private var fishScanX2 = TRACK_X2_ITER
 
     private val lab1 = DoubleArray(3)
     private val lab2 = DoubleArray(3)
-    private var historyBarCenters = ArrayDeque<Int>()
+    private var lastBarCenter: Int? = null
 
     private fun colorIntWithinRgbRange(
         color: Int, r: Int, g: Int, b: Int, threshold: Int
@@ -77,16 +92,19 @@ object Detector {
         var fish: Fish? = null
         val edges = mutableListOf<Int>()
 
-        for (x in TRACK_X1_ITER + 1..TRACK_X2_ITER) {
+        for (x in fishScanX1..fishScanX2) {
+            val color = bitmap[x, scanY]
+            if (colorIntWithinRgbRange(color, 67, 75, 91, 5)) {
+                fish = Fish(x)
+            }
+        }
+
+        for (x in barScanX1 + 1..barScanX2) {
             val colorLeft = bitmap[x - 1, scanY]
             val colorRight = bitmap[x, scanY]
             val diff = getColorDistance(colorLeft, colorRight)
-            if (diff > 10f) {
+            if (diff > 10.0) {
                 edges.add(x)
-            }
-
-            if (colorIntWithinRgbRange(colorRight, 67, 75, 91, 5)) {
-                fish = Fish(x)
             }
         }
 
@@ -149,37 +167,55 @@ object Detector {
     Take median from history
     Return the fish and bar
      */
-    suspend fun processFrame(bitmap: Bitmap) {
-        withContext(Dispatchers.Default) {
-            if (bitmap.height > bitmap.width) {
-                return@withContext
-            }
+    fun detect(bitmap: Bitmap): Pair<Fish?, Bar?> {
+        val fishAndBars = mutableListOf<Pair<Fish?, Bar?>>()
+        TRACK_SCAN_YS.forEach { scanY ->
+            fishAndBars += findFishAndBar(
+                bitmap, scanY, lastBarCenter
+            )
+        }
 
-            val fishAndBars = mutableListOf<Pair<Fish?, Bar?>>()
-            TRACK_SCAN_YS.forEach { scanY ->
-                fishAndBars += findFishAndBar(
-                    bitmap, scanY, historyBarCenters.lastOrNull()
+        val fish =
+            takeMedian(fishAndBars.mapNotNull { it.first }.map { it.x }.sorted())?.let { Fish(it) }
+        if (fish == null) {
+            fishScanX1 = TRACK_X1_ITER
+            fishScanX2 = TRACK_X2_ITER
+        } else {
+            fishScanX1 = fish.x - NEXT_FISH_SCAN_RANGE_OFFSET
+            fishScanX1 = max(fishScanX1, TRACK_X1_ITER)
+            fishScanX2 = fish.x + NEXT_FISH_SCAN_RANGE_OFFSET
+            fishScanX2 = min(fishScanX2, TRACK_X2_ITER)
+        }
+
+        val bar = takeMedian(fishAndBars.mapNotNull { it.second }.map { it.center })?.let {
+            Bar(
+                it - EXPECTED_BAR_WIDTH / 2, it + EXPECTED_BAR_WIDTH / 2
+            )
+        }
+        lastBarCenter = bar?.center
+        if (bar == null) {
+            barScanX1 = TRACK_X1_ITER
+            barScanX2 = TRACK_X2_ITER
+        } else {
+            barScanX1 = bar.center - NEXT_BAR_SCAN_RANGE_OFFSET
+            barScanX1 = max(barScanX1, TRACK_X1_ITER)
+            barScanX2 = bar.center + NEXT_BAR_SCAN_RANGE_OFFSET
+            barScanX2 = min(barScanX2, TRACK_X2_ITER)
+        }
+
+        return fish to bar
+    }
+
+    fun notInMinigame(bitmap: Bitmap): Boolean {
+        var match = 0
+        for ((x, y, r, g, b) in LIST_OF_COINS_POINT_COLOR) {
+            if (colorIntWithinRgbRange(
+                    bitmap[x, y], r, g, b, 5
                 )
-            }
-
-            val fish = takeMedian(fishAndBars.mapNotNull { it.first }.map { it.x }
-                .sorted())?.let { Fish(it) }
-
-            val barCenter = takeMedian(fishAndBars.mapNotNull { it.second }.map { it.center })
-            barCenter?.also { historyBarCenters.addLast(it) }
-            if (historyBarCenters.size > SMOOTHING_FRAMES) {
-                historyBarCenters.removeFirst()
-            }
-            val bar = takeMedian(historyBarCenters.sorted())?.let {
-                Bar(
-                    it - EXPECTED_BAR_WIDTH / 2,
-                    it + EXPECTED_BAR_WIDTH / 2
-                )
-            }
-
-            withContext(Dispatchers.Main) {
-                OverlayManager.updateMinigame(fish, bar)
+            ) {
+                match++
             }
         }
+        return match >= 3
     }
 }

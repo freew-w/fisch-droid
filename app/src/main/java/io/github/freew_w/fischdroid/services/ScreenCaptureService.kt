@@ -21,8 +21,7 @@ import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.createBitmap
 import androidx.window.layout.WindowMetricsCalculator
-import io.github.freew_w.fischdroid.minigame.Detector
-import io.github.freew_w.fischdroid.shake.Clicker
+import io.github.freew_w.fischdroid.Orchestrator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -61,11 +60,10 @@ class ScreenCaptureService : Service() {
 
         val resultCode =
             intent?.getIntExtra("resultCode", Activity.RESULT_CANCELED) ?: Activity.RESULT_CANCELED
-        @Suppress("DEPRECATION") val data =
-            intent?.getParcelableExtra<Intent>("data") ?: run {
-                stop()
-                return START_NOT_STICKY
-            }
+        @Suppress("DEPRECATION") val data = intent?.getParcelableExtra<Intent>("data") ?: run {
+            stop()
+            return START_NOT_STICKY
+        }
 
         val manager = getSystemService(MediaProjectionManager::class.java)
         val projection = manager.getMediaProjection(resultCode, data) ?: run {
@@ -199,8 +197,7 @@ class ScreenCaptureService : Service() {
                 frameBitmap.copyPixelsFromBuffer(plane.buffer)
                 image.close()
 
-                Clicker.processFrame(frameBitmap, frameWidth, frameHeight)
-                Detector.processFrame(frameBitmap)
+                Orchestrator.processFrame(frameBitmap, frameWidth, frameHeight)
             } finally {
                 runCatching { image.close() }
                 isProcessingFrame = false
