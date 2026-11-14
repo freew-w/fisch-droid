@@ -6,7 +6,7 @@ import android.content.Intent
 import android.graphics.Path
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
-import io.github.freew_w.fischdroid.overlay.DetectionOverlayManager
+import io.github.freew_w.fischdroid.overlay.DetectionOverlay
 import io.github.freew_w.fischdroid.overlay.FloatingOverlay
 
 private const val TAG = "TapService"
@@ -52,7 +52,7 @@ class TapService : AccessibilityService() {
     override fun onServiceConnected() {
         Log.i(TAG, "onServiceConnected")
         super.onServiceConnected()
-        DetectionOverlayManager.show(this)
+        DetectionOverlay.show(this)
         floatingOverlay = FloatingOverlay(this)
         instance = this
     }
@@ -60,7 +60,7 @@ class TapService : AccessibilityService() {
     override fun onUnbind(intent: Intent?): Boolean {
         Log.i(TAG, "onUnbind")
         resetHold()
-        DetectionOverlayManager.hide(this)
+        DetectionOverlay.hide(this)
         floatingOverlay?.hide()
         instance = null
         return super.onUnbind(intent)

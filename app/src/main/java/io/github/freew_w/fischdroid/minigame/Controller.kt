@@ -2,7 +2,7 @@ package io.github.freew_w.fischdroid.minigame
 
 import android.graphics.Bitmap
 import android.os.SystemClock
-import io.github.freew_w.fischdroid.overlay.DetectionOverlayManager
+import io.github.freew_w.fischdroid.overlay.DetectionOverlay
 import io.github.freew_w.fischdroid.services.TapService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -19,7 +19,7 @@ object Controller {
             val (fish, bar) = Detector.detect(bitmap)
 
             withContext(Dispatchers.Main) {
-                DetectionOverlayManager.updateMinigame(fish, bar)
+                DetectionOverlay.updateMinigame(fish, bar)
             }
 
             val hold = if (fish != null && bar != null) {
