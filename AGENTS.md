@@ -9,7 +9,7 @@ Package/application ID: `io.github.freew_w.fischdroid`. UI is classic Views/XML,
 
 Source layout: the root package holds `MainActivity` and `Orchestrator`; `services/` holds
 `ScreenCaptureService`/`TapService`; `minigame/` holds `Detector`/`Controller`/`ControlLoop`;
-`overlay/` holds `OverlayManager`/`OverlayView`; `shake/` holds `Detector`/`Clicker`. Both
+`overlay/` holds `DetectionOverlayManager`/`DetectionOverlayView`; `shake/` holds `Detector`/`Clicker`. Both
 `minigame/` and `shake/` define a `Detector`, so refer to them by package.
 
 ## Build and verify

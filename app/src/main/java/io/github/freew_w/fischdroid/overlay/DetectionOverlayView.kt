@@ -7,7 +7,7 @@ import android.graphics.Paint
 import android.view.View
 import io.github.freew_w.fischdroid.minigame.Detector
 
-class OverlayView(context: Context) : View(context) {
+class DetectionOverlayView(context: Context) : View(context) {
     private var edges: List<Int>? = null
     private var fish: Detector.Fish? = null
     private var bar: Detector.Bar? = null
@@ -39,6 +39,7 @@ class OverlayView(context: Context) : View(context) {
 
     fun dbgDots(edges: List<Int>?) {
         this.edges = edges
+        invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {

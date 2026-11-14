@@ -3,7 +3,7 @@ package io.github.freew_w.fischdroid.shake
 import android.graphics.Bitmap
 import android.os.SystemClock
 import android.util.Log
-import io.github.freew_w.fischdroid.overlay.OverlayManager
+import io.github.freew_w.fischdroid.overlay.DetectionOverlayManager
 import io.github.freew_w.fischdroid.services.TapService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -26,7 +26,7 @@ object Clicker {
 
             val button = Detector.find(bitmap, width, height)
             withContext(Dispatchers.Main) {
-                OverlayManager.updateShake(button)
+                DetectionOverlayManager.updateShake(button)
             }
             if (button == null) return@withContext
             detected = true

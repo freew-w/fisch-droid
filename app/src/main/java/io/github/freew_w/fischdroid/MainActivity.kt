@@ -80,6 +80,15 @@ class MainActivity : AppCompatActivity() {
                 )
             )
         }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            launchScreenCapture()
+        }
     }
 
     private fun launchScreenCapture() {

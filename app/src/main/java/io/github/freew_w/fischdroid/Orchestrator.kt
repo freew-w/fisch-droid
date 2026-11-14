@@ -12,12 +12,14 @@ object Orchestrator {
 
     private var lastDetectionMs = 0L
 
+    var started = false
+
     private fun castRod() {
         TapService.instance?.press(1100f, 600f, 500L)
     }
 
     suspend fun processFrame(bitmap: Bitmap, frameWidth: Int, frameHeight: Int) {
-        if (bitmap.height > bitmap.width) {
+        if (bitmap.height > bitmap.width || !started) {
             TapService.instance?.setHolding(false, 1100f, 600f)
             return
         }

@@ -7,16 +7,20 @@ import io.github.freew_w.fischdroid.minigame.Detector.Bar
 import io.github.freew_w.fischdroid.minigame.Detector.Fish
 import io.github.freew_w.fischdroid.shake.Detector
 
-object OverlayManager {
-    private var overlayView: OverlayView? = null
+object DetectionOverlayManager {
+    private var detectionOverlayView: DetectionOverlayView? = null
 
     fun show(service: AccessibilityService) {
-        if (overlayView != null) return
+        showDetectionOverlay(service)
+    }
+
+    private fun showDetectionOverlay(service: AccessibilityService) {
+        if (detectionOverlayView != null) return
 
         val windowManager =
             service.getSystemService(AccessibilityService.WINDOW_SERVICE) as WindowManager
 
-        overlayView = OverlayView(service).apply {
+        detectionOverlayView = DetectionOverlayView(service).apply {
             isClickable = false
             isFocusable = false
         }
@@ -29,27 +33,27 @@ object OverlayManager {
             PixelFormat.TRANSLUCENT
         )
 
-        windowManager.addView(overlayView, params)
+        windowManager.addView(detectionOverlayView, params)
     }
 
     fun updateMinigame(fish: Fish?, bar: Bar?) {
-        overlayView?.updateMinigame(fish, bar)
+        detectionOverlayView?.updateMinigame(fish, bar)
     }
 
     fun updateShake(button: Detector.Button?) {
-        overlayView?.updateShake(button)
+        detectionOverlayView?.updateShake(button)
     }
 
     fun dbgDots(edges: List<Int>?) {
-        overlayView?.dbgDots(edges)
+        detectionOverlayView?.dbgDots(edges)
     }
 
     fun hide(service: AccessibilityService) {
-        overlayView?.let {
+        detectionOverlayView?.let {
             val windowManager =
                 service.getSystemService(AccessibilityService.WINDOW_SERVICE) as WindowManager
             windowManager.removeView(it)
-            overlayView = null
+            detectionOverlayView = null
         }
     }
 }
