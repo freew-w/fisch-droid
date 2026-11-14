@@ -15,11 +15,6 @@ object Controller {
         var detected = false
 
         withContext(Dispatchers.Default) {
-            if (bitmap.height > bitmap.width) {
-                TapService.instance?.setHolding(false, HOLD_X, HOLD_Y)
-                return@withContext
-            }
-
             val now = SystemClock.elapsedRealtime()
             val (fish, bar) = Detector.detect(bitmap)
 

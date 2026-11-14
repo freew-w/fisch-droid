@@ -17,6 +17,11 @@ object Orchestrator {
     }
 
     suspend fun processFrame(bitmap: Bitmap, frameWidth: Int, frameHeight: Int) {
+        if (bitmap.height > bitmap.width) {
+            TapService.instance?.setHolding(false, 1100f, 600f)
+            return
+        }
+
         val now = SystemClock.elapsedRealtime()
 
         if (Detector.notInMinigame(bitmap)) {
