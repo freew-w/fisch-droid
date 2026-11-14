@@ -38,12 +38,11 @@ object Detector {
         TRACK_Y + TRACK_H - 2
     )
 
-    private const val CONTROL = 0.15f
-    private const val EXPECTED_BAR_WIDTH =
-        (TRACK_W * (0.3f + CONTROL) + 1).toInt() // Plus one to round up
+    private var control = 0f
+    private var expectedBarWidth = (TRACK_W * (0.3f + control) + 1).toInt() // Plus one to round up
     private const val WIDTH_TOLERANCE = 4
 
-    private const val NEXT_BAR_SCAN_RANGE_OFFSET = (EXPECTED_BAR_WIDTH * 0.7f).toInt()
+    private var nextBarScanRangeOffset = (expectedBarWidth * 0.7f).toInt()
     private const val NEXT_FISH_SCAN_RANGE_OFFSET = 20
     private var barScanX1 = TRACK_X1_ITER
     private var barScanX2 = TRACK_X2_ITER
@@ -78,7 +77,7 @@ object Detector {
         outerLoop@ for (i in 0 until edges.size - 1) {
             for (j in i + 1 until edges.size) {
                 val width = edges[j] - edges[i]
-                if (width in EXPECTED_BAR_WIDTH - WIDTH_TOLERANCE..EXPECTED_BAR_WIDTH + WIDTH_TOLERANCE) {
+                if (width in expectedBarWidth - WIDTH_TOLERANCE..expectedBarWidth + WIDTH_TOLERANCE) {
                     bars.add(Bar(edges[i], edges[j]))
                 }
             }
@@ -189,7 +188,7 @@ object Detector {
 
         val bar = takeMedian(fishAndBars.mapNotNull { it.second }.map { it.center })?.let {
             Bar(
-                it - EXPECTED_BAR_WIDTH / 2, it + EXPECTED_BAR_WIDTH / 2
+                it - expectedBarWidth / 2, it + expectedBarWidth / 2
             )
         }
         lastBarCenter = bar?.center
@@ -197,9 +196,9 @@ object Detector {
             barScanX1 = TRACK_X1_ITER
             barScanX2 = TRACK_X2_ITER
         } else {
-            barScanX1 = bar.center - NEXT_BAR_SCAN_RANGE_OFFSET
+            barScanX1 = bar.center - nextBarScanRangeOffset
             barScanX1 = max(barScanX1, TRACK_X1_ITER)
-            barScanX2 = bar.center + NEXT_BAR_SCAN_RANGE_OFFSET
+            barScanX2 = bar.center + nextBarScanRangeOffset
             barScanX2 = min(barScanX2, TRACK_X2_ITER)
         }
 
@@ -217,5 +216,11 @@ object Detector {
             }
         }
         return match >= 3
+    }
+
+    fun updateControl(control: Float) {
+        this.control = control
+        expectedBarWidth = (TRACK_W * (0.3f + control) + 1).toInt()
+        nextBarScanRangeOffset = (expectedBarWidth * 0.7f).toInt()
     }
 }
