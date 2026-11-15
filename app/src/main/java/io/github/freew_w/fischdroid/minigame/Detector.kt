@@ -25,7 +25,9 @@ object Detector {
         val control: Float,
         val positionGain: Float,
         val velocityGain: Float,
-        val switchBand: Float
+        val switchBand: Float,
+        val castHoldX: Float,
+        val castHoldY: Float,
     ) {
         val x1Iter = trackX - 5 // Inclusive
         val x2Iter = trackX + trackW - 1 + 5 // Inclusive

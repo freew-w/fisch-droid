@@ -16,4 +16,6 @@
     <string name="position_gain_label">Position gain (kp):</string>
     <string name="velocity_gain_label">Velocity gain (kd):</string>
     <string name="switch_band_label">Switch band:</string>
+    <string name="cast_hold_x_label">Cast hold X:</string>
+    <string name="cast_hold_y_label">Y:</string>
 </resources>

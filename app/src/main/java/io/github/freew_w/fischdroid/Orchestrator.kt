@@ -15,8 +15,8 @@ object Orchestrator {
 
     var started = false
 
-    private fun castRod() {
-        TapService.instance?.press(1100f, 600f, 500L)
+    private fun castRod(spec: Detector.ScanSpec) {
+        TapService.instance?.press(spec.castHoldX, spec.castHoldY, 500L)
     }
 
     private fun scanSpec() = Detector.ScanSpec(
@@ -28,6 +28,8 @@ object Orchestrator {
         positionGain = Config.positionGain,
         velocityGain = Config.velocityGain,
         switchBand = Config.switchBand,
+        castHoldX = Config.castHoldX,
+        castHoldY = Config.castHoldY,
     )
 
     suspend fun processFrame(bitmap: Bitmap, frameWidth: Int, frameHeight: Int) {
@@ -37,18 +39,19 @@ object Orchestrator {
         }
 
         val now = SystemClock.elapsedRealtime()
+        val spec = scanSpec()
 
         if (Detector.notInMinigame(bitmap)) {
             if (now - lastDetectionMs > CAST_AFTER_MS) {
                 lastDetectionMs = now
-                castRod()
+                castRod(spec)
             }
 
             if (Clicker.processFrame(bitmap, frameWidth, frameHeight)) {
                 lastDetectionMs = now
             }
         } else {
-            if (Controller.processFrame(bitmap, scanSpec())) {
+            if (Controller.processFrame(bitmap, spec)) {
                 lastDetectionMs = now
             }
         }

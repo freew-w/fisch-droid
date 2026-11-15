@@ -8,8 +8,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 object Controller {
-    private const val HOLD_X = 1100f
-    private const val HOLD_Y = 600f
     private const val RESET_AFTER_MS = 500L
     private var lastDetectedMs = 0L
 
@@ -41,9 +39,9 @@ object Controller {
 
             val service = TapService.instance
             if (hold == null) {
-                service?.setHolding(false, HOLD_X, HOLD_Y)
+                service?.setHolding(false, spec.castHoldX, spec.castHoldY)
             } else {
-                service?.setHolding(hold, HOLD_X, HOLD_Y)
+                service?.setHolding(hold, spec.castHoldX, spec.castHoldY)
             }
         }
         return detected

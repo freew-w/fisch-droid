@@ -130,6 +130,20 @@ class MainActivity : AppCompatActivity() {
             check = { it >= 0 },
             set = { Config.switchBand = it },
         )
+        bindConfigField(
+            findViewById(R.id.et_cast_hold_x),
+            get = { Config.castHoldX },
+            parse = String::toFloatOrNull,
+            check = { it >= 0 },
+            set = { Config.castHoldX = it },
+        )
+        bindConfigField(
+            findViewById(R.id.et_cast_hold_y),
+            get = { Config.castHoldY },
+            parse = String::toFloatOrNull,
+            check = { it >= 0 },
+            set = { Config.castHoldY = it },
+        )
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(
                 this, Manifest.permission.POST_NOTIFICATIONS

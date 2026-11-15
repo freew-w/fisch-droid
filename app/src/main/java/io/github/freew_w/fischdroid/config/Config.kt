@@ -14,6 +14,8 @@ object Config {
     private const val KEY_POSITION_GAIN = "position_gain"
     private const val KEY_VELOCITY_GAIN = "velocity_gain"
     private const val KEY_SWITCH_BAND = "switch_band"
+    private const val KEY_CAST_HOLD_X = "cast_hold_x"
+    private const val KEY_CAST_HOLD_Y = "cast_hold_y"
 
     private var preferences: SharedPreferences? = null
 
@@ -58,4 +60,12 @@ object Config {
     var switchBand: Float
         get() = prefs.getFloat(KEY_SWITCH_BAND, 50f)
         set(value) = prefs.edit { putFloat(KEY_SWITCH_BAND, value) }
+
+    var castHoldX: Float
+        get() = prefs.getFloat(KEY_CAST_HOLD_X, 1100f)
+        set(value) = prefs.edit { putFloat(KEY_CAST_HOLD_X, value) }
+
+    var castHoldY: Float
+        get() = prefs.getFloat(KEY_CAST_HOLD_Y, 600f)
+        set(value) = prefs.edit { putFloat(KEY_CAST_HOLD_Y, value) }
 }

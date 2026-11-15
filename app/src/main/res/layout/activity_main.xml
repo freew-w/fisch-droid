@@ -36,6 +36,39 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:labelFor="@id/et_cast_hold_x"
+            android:text="@string/cast_hold_x_label" />
+
+        <EditText
+            android:id="@+id/et_cast_hold_x"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:autofillHints=""
+            android:inputType="number" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:labelFor="@id/et_cast_hold_y"
+            android:text="@string/cast_hold_y_label" />
+
+        <EditText
+            android:id="@+id/et_cast_hold_y"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:autofillHints=""
+            android:inputType="number" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:labelFor="@id/et_rod_control"
             android:text="@string/rod_control_label" />
 
