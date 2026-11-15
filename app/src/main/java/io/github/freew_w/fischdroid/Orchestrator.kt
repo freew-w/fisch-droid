@@ -25,6 +25,9 @@ object Orchestrator {
         trackW = Config.trackW,
         trackH = Config.trackH,
         control = Config.rodControl,
+        positionGain = Config.positionGain,
+        velocityGain = Config.velocityGain,
+        switchBand = Config.switchBand,
     )
 
     suspend fun processFrame(bitmap: Bitmap, frameWidth: Int, frameHeight: Int) {

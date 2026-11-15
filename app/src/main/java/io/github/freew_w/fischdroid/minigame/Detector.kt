@@ -18,8 +18,14 @@ object Detector {
     }
 
     data class ScanSpec(
-        val trackX: Int, val trackY: Int, val trackW: Int, val trackH: Int,
+        val trackX: Int,
+        val trackY: Int,
+        val trackW: Int,
+        val trackH: Int,
         val control: Float,
+        val positionGain: Float,
+        val velocityGain: Float,
+        val switchBand: Float
     ) {
         val x1Iter = trackX - 5 // Inclusive
         val x2Iter = trackX + trackW - 1 + 5 // Inclusive

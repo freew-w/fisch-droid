@@ -34,7 +34,7 @@ object Controller {
                 detected = true
                 lastDetectedMs = now
 
-                ControlLoop.decide(fish, bar, now)
+                ControlLoop.decide(fish, bar, now, spec)
             } else {
                 null
             }

@@ -25,12 +25,6 @@ object ControlLoop {
         var samples: Int,
     )
 
-    private const val POSITION_GAIN = 4.0f
-    private const val VELOCITY_GAIN = 3.2f
-
-    /** Command hysteresis, in px/s, to avoid toggling on velocity estimate noise. */
-    private const val SWITCH_BAND = 50f
-
     /** Ignore the first few samples while the raw velocities settle. */
     private const val MIN_SAMPLES = 3
 
@@ -41,7 +35,7 @@ object ControlLoop {
     }
 
     /** Returns true to hold, false to release, or null while there are not enough samples. */
-    fun decide(fish: Fish, bar: Bar, nowMs: Long): Boolean? {
+    fun decide(fish: Fish, bar: Bar, nowMs: Long, spec: Detector.ScanSpec): Boolean? {
         val s = state
         if (s == null) {
             state = State(nowMs, bar.center.toFloat(), 0f, fish.x.toFloat(), 0f, false, 1)
@@ -65,12 +59,12 @@ object ControlLoop {
 
         val error = s.fishX - s.barX
         val relativeVelocity = s.barV - s.fishV
-        val control = POSITION_GAIN * error - VELOCITY_GAIN * relativeVelocity
+        val control = spec.positionGain * error - spec.velocityGain * relativeVelocity
 
         s.holding = if (s.holding) {
-            control > -SWITCH_BAND
+            control > -spec.switchBand
         } else {
-            control > SWITCH_BAND
+            control > spec.switchBand
         }
         return s.holding
     }
