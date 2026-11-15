@@ -11,19 +11,19 @@
     tools:context=".MainActivity">
 
     <Button
-        android:id="@+id/btnEnable"
+        android:id="@+id/btn_enable_accessibility_service"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/enable_accessibility_service" />
 
     <Button
-        android:id="@+id/btnCapture"
+        android:id="@+id/btn_start_capture"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/start_screen_capture" />
 
     <Button
-        android:id="@+id/btnStopCapture"
+        android:id="@+id/btn_stop_capture"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/stop_screen_capture" />
@@ -36,11 +36,11 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:labelFor="@id/rodControl"
+            android:labelFor="@id/et_rod_control"
             android:text="@string/rod_control_label" />
 
         <EditText
-            android:id="@+id/rodControl"
+            android:id="@+id/et_rod_control"
             android:layout_width="80dp"
             android:layout_height="wrap_content"
             android:autofillHints=""
@@ -56,11 +56,11 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:labelFor="@id/trackX"
+            android:labelFor="@id/et_track_x"
             android:text="@string/track_x_label" />
 
         <EditText
-            android:id="@+id/trackX"
+            android:id="@+id/et_track_x"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:autofillHints=""
@@ -69,11 +69,11 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:labelFor="@id/trackY"
+            android:labelFor="@id/et_track_y"
             android:text="@string/track_y_label" />
 
         <EditText
-            android:id="@+id/trackY"
+            android:id="@+id/et_track_y"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:autofillHints=""
@@ -82,11 +82,11 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:labelFor="@id/trackW"
+            android:labelFor="@id/et_track_w"
             android:text="@string/track_w_label" />
 
         <EditText
-            android:id="@+id/trackW"
+            android:id="@+id/et_track_w"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:autofillHints=""
@@ -95,11 +95,11 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:labelFor="@id/trackH"
+            android:labelFor="@id/et_track_h"
             android:text="@string/track_h_label" />
 
         <EditText
-            android:id="@+id/trackH"
+            android:id="@+id/et_track_h"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:autofillHints=""

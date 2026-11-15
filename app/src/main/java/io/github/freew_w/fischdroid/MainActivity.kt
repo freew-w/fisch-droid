@@ -50,12 +50,12 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        findViewById<Button>(R.id.btnEnable).setOnClickListener {
+        findViewById<Button>(R.id.btn_enable_accessibility_service).setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             Toast.makeText(this, R.string.enable_accessibility_hint, Toast.LENGTH_LONG).show()
         }
 
-        findViewById<Button>(R.id.btnCapture).setOnClickListener {
+        findViewById<Button>(R.id.btn_start_capture).setOnClickListener {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(
                     this, Manifest.permission.POST_NOTIFICATIONS
                 ) != PackageManager.PERMISSION_GRANTED
@@ -66,7 +66,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        findViewById<Button>(R.id.btnStopCapture).setOnClickListener {
+        findViewById<Button>(R.id.btn_stop_capture).setOnClickListener {
             startService(
                 Intent(this, ScreenCaptureService::class.java).putExtra(
                     "ACTION", "STOP"
@@ -75,35 +75,35 @@ class MainActivity : AppCompatActivity() {
         }
 
         bindConfigField(
-            findViewById(R.id.rodControl),
+            findViewById(R.id.et_rod_control),
             get = { Config.rodControl },
             parse = String::toFloatOrNull,
             check = { it >= -0.3f },
             set = { Config.rodControl = it },
         )
         bindConfigField(
-            findViewById(R.id.trackX),
+            findViewById(R.id.et_track_x),
             get = { Config.trackX },
             parse = String::toIntOrNull,
             check = { it > 0 },
             set = { Config.trackX = it },
         )
         bindConfigField(
-            findViewById(R.id.trackY),
+            findViewById(R.id.et_track_y),
             get = { Config.trackY },
             parse = String::toIntOrNull,
             check = { it > 0 },
             set = { Config.trackY = it },
         )
         bindConfigField(
-            findViewById(R.id.trackW),
+            findViewById(R.id.et_track_w),
             get = { Config.trackW },
             parse = String::toIntOrNull,
             check = { it > 0 },
             set = { Config.trackW = it },
         )
         bindConfigField(
-            findViewById(R.id.trackH),
+            findViewById(R.id.et_track_h),
             get = { Config.trackH },
             parse = String::toIntOrNull,
             check = { it > 0 },
