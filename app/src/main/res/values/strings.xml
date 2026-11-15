@@ -13,4 +13,7 @@
     <string name="track_w_label">W:</string>
     <string name="track_h_label">H:</string>
     <string name="invalid_config_value">Please enter a valid value</string>
+    <string name="position_gain_label">Position gain (kp):</string>
+    <string name="velocity_gain_label">Velocity gain (kd):</string>
+    <string name="switch_band_label">Switch band:</string>
 </resources>

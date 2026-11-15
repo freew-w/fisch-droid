@@ -109,6 +109,27 @@ class MainActivity : AppCompatActivity() {
             check = { it > 0 },
             set = { Config.trackH = it },
         )
+        bindConfigField(
+            findViewById(R.id.et_position_gain),
+            get = { Config.positionGain },
+            parse = String::toFloatOrNull,
+            check = { it >= 0 },
+            set = { Config.positionGain = it },
+        )
+        bindConfigField(
+            findViewById(R.id.et_velocity_gain),
+            get = { Config.velocityGain },
+            parse = String::toFloatOrNull,
+            check = { it >= 0 },
+            set = { Config.velocityGain = it },
+        )
+        bindConfigField(
+            findViewById(R.id.et_switch_band),
+            get = { Config.switchBand },
+            parse = String::toFloatOrNull,
+            check = { it >= 0 },
+            set = { Config.switchBand = it },
+        )
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(
                 this, Manifest.permission.POST_NOTIFICATIONS
