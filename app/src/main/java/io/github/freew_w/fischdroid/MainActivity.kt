@@ -85,14 +85,14 @@ class MainActivity : AppCompatActivity() {
             findViewById(R.id.et_track_x),
             get = { Config.trackX },
             parse = String::toIntOrNull,
-            check = { it > 0 },
+            check = { it >= 0 },
             set = { Config.trackX = it },
         )
         bindConfigField(
             findViewById(R.id.et_track_y),
             get = { Config.trackY },
             parse = String::toIntOrNull,
-            check = { it > 0 },
+            check = { it >= 0 },
             set = { Config.trackY = it },
         )
         bindConfigField(
