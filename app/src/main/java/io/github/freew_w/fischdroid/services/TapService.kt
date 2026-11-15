@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Path
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import io.github.freew_w.fischdroid.config.Config
 import io.github.freew_w.fischdroid.overlay.DetectionOverlay
 import io.github.freew_w.fischdroid.overlay.FloatingOverlay
 
@@ -52,7 +53,7 @@ class TapService : AccessibilityService() {
     override fun onServiceConnected() {
         Log.i(TAG, "onServiceConnected")
         super.onServiceConnected()
-        DetectionOverlay.show(this)
+        DetectionOverlay.show(this) { Config.trackY + Config.trackH / 2f - 150f }
         floatingOverlay = FloatingOverlay(this)
         instance = this
     }
@@ -60,7 +61,7 @@ class TapService : AccessibilityService() {
     override fun onUnbind(intent: Intent?): Boolean {
         Log.i(TAG, "onUnbind")
         resetHold()
-        DetectionOverlay.hide(this)
+        DetectionOverlay.hide()
         floatingOverlay?.hide()
         instance = null
         return super.onUnbind(intent)

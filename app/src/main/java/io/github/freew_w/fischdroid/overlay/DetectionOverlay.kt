@@ -8,15 +8,14 @@ import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.view.View
 import android.view.WindowManager
-import io.github.freew_w.fischdroid.minigame.Detector
 import io.github.freew_w.fischdroid.minigame.Detector.Bar
 import io.github.freew_w.fischdroid.minigame.Detector.Fish
 
 object DetectionOverlay {
-    private var detectionOverlayView: DetectionOverlayView? = null
-
-    private class DetectionOverlayView(context: Context) : View(context) {
-        private val drawY = Detector.TRACK_SCAN_YS[2].toFloat() - 150f
+    private class DetectionOverlayView(
+        context: Context,
+        private val drawY: () -> Float,
+    ) : View(context) {
         private val fishPaint = Paint().apply { color = Color.RED; style = Paint.Style.FILL }
         private val barPaint = Paint().apply {
             color = Color.argb(128, 0, 255, 0) // 128 is 50% opacity
@@ -38,17 +37,19 @@ object DetectionOverlay {
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
 
+            val y = drawY()
+
             bar?.let {
-                canvas.drawRect(it.x1.toFloat(), drawY, it.x2.toFloat(), drawY + 10, barPaint)
+                canvas.drawRect(it.x1.toFloat(), y, it.x2.toFloat(), y + 10, barPaint)
             }
 
             fish?.let {
-                canvas.drawRect(it.x.toFloat(), drawY, it.x.toFloat() + 5f, drawY + 10, fishPaint)
+                canvas.drawRect(it.x.toFloat(), y, it.x.toFloat() + 5f, y + 10, fishPaint)
             }
 
             dots?.let {
                 for (edge in it) {
-                    canvas.drawCircle(edge.toFloat(), drawY, 5f, barPaint)
+                    canvas.drawCircle(edge.toFloat(), y, 5f, barPaint)
                 }
             }
 
@@ -61,13 +62,15 @@ object DetectionOverlay {
         }
     }
 
-    fun show(service: AccessibilityService) {
+    private var windowManager: WindowManager? = null
+    private var detectionOverlayView: DetectionOverlayView? = null
+
+    fun show(service: AccessibilityService, drawY: () -> Float) {
         if (detectionOverlayView != null) return
 
         val windowManager =
             service.getSystemService(AccessibilityService.WINDOW_SERVICE) as WindowManager
-
-        detectionOverlayView = DetectionOverlayView(service).apply {
+        val view = DetectionOverlayView(service, drawY).apply {
             isClickable = false
             isFocusable = false
         }
@@ -80,31 +83,38 @@ object DetectionOverlay {
             PixelFormat.TRANSLUCENT
         )
 
-        windowManager.addView(detectionOverlayView, params)
+        windowManager.addView(view, params)
+
+        this.windowManager = windowManager
+        detectionOverlayView = view
     }
 
     fun updateMinigame(fish: Fish?, bar: Bar?) {
-        detectionOverlayView?.fish = fish
-        detectionOverlayView?.bar = bar
-        detectionOverlayView?.invalidate()
+        detectionOverlayView?.let {
+            it.fish = fish
+            it.bar = bar
+            it.invalidate()
+        }
     }
 
     fun updateShake(button: io.github.freew_w.fischdroid.shake.Detector.Button?) {
-        detectionOverlayView?.shake = button
-        detectionOverlayView?.invalidate()
+        detectionOverlayView?.let {
+            it.shake = button
+            it.invalidate()
+        }
     }
 
     fun dbgDots(edges: List<Int>?) {
-        detectionOverlayView?.dots = edges
-        detectionOverlayView?.invalidate()
+        detectionOverlayView?.let {
+            it.dots = edges
+            it.invalidate()
+        }
     }
 
-    fun hide(service: AccessibilityService) {
-        detectionOverlayView?.let {
-            val windowManager =
-                service.getSystemService(AccessibilityService.WINDOW_SERVICE) as WindowManager
-            runCatching { windowManager.removeView(it) }
-            detectionOverlayView = null
-        }
+    fun hide() {
+        if (detectionOverlayView == null) return
+        windowManager?.let { runCatching { it.removeView(detectionOverlayView) } }
+        detectionOverlayView = null
+        windowManager = null
     }
 }

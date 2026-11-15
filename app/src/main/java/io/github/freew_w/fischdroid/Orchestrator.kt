@@ -2,6 +2,7 @@ package io.github.freew_w.fischdroid
 
 import android.graphics.Bitmap
 import android.os.SystemClock
+import io.github.freew_w.fischdroid.config.Config
 import io.github.freew_w.fischdroid.minigame.Controller
 import io.github.freew_w.fischdroid.minigame.Detector
 import io.github.freew_w.fischdroid.services.TapService
@@ -17,6 +18,14 @@ object Orchestrator {
     private fun castRod() {
         TapService.instance?.press(1100f, 600f, 500L)
     }
+
+    private fun scanSpec() = Detector.ScanSpec(
+        trackX = Config.trackX,
+        trackY = Config.trackY,
+        trackW = Config.trackW,
+        trackH = Config.trackH,
+        control = Config.rodControl,
+    )
 
     suspend fun processFrame(bitmap: Bitmap, frameWidth: Int, frameHeight: Int) {
         if (bitmap.height > bitmap.width || !started) {
@@ -36,7 +45,7 @@ object Orchestrator {
                 lastDetectionMs = now
             }
         } else {
-            if (Controller.processFrame(bitmap)) {
+            if (Controller.processFrame(bitmap, scanSpec())) {
                 lastDetectionMs = now
             }
         }

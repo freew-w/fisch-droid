@@ -7,10 +7,11 @@ or CI; Gradle and the source are the source of truth.
 
 Package/application ID: `io.github.freew_w.fischdroid`. UI is classic Views/XML, not Compose.
 
-Source layout: the root package holds `MainActivity` and `Orchestrator`; `services/` holds
-`ScreenCaptureService`/`TapService`; `minigame/` holds `Detector`/`Controller`/`ControlLoop`;
-`overlay/` holds `DetectionOverlayManager`/`DetectionOverlayView`; `shake/` holds `Detector`/`Clicker`. Both
-`minigame/` and `shake/` define a `Detector`, so refer to them by package.
+Source layout: the root package holds `FischDroidApp`, `MainActivity`, and `Orchestrator`; `config/`
+holds the persisted `Config`; `services/` holds `ScreenCaptureService`/`TapService`; `minigame/`
+holds `Detector`/`Controller`/`ControlLoop`; `overlay/` holds `DetectionOverlay`/`FloatingOverlay`;
+`shake/` holds `Detector`/`Clicker`. Both `minigame/` and `shake/` define a `Detector`, so refer to
+them by package.
 
 ## Build and verify
 
@@ -51,10 +52,14 @@ AndroidX, not declared in `app/build.gradle.kts`.
   the endpoint by 1 px because zero-motion segments are cancelled; release sends a final 1 ms
   segment with `willContinue = false`. `press` remains the finite-tap API used by `MainActivity`,
   `shake/Clicker`, and `Orchestrator`.
-- Detection and gesture coordinates are calibrated to a specific landscape screen. Recalibrate
-  `TRACK_*`/coin pixels in `minigame/Detector.kt`, `HOLD_X`/`HOLD_Y` in `minigame/Controller.kt`,
-  and the cast/test taps in `Orchestrator.kt`/`MainActivity.kt` for another device. Portrait capture
-  is only partially handled: `notInMinigame` runs before `Controller`'s orientation guard.
+- Detection and gesture coordinates are calibrated to a specific landscape screen. Track geometry
+  and rod control are persisted by `config/Config.kt` and edited on the main screen; `FischDroidApp`
+  initializes it at process start, and `Orchestrator` rebuilds `Detector.ScanSpec` each frame so edits
+  apply live. Recalibrate the `Config` defaults, coin pixels in `minigame/Detector.kt`,
+  `HOLD_X`/`HOLD_Y` in `minigame/Controller.kt`, and the cast/test taps in
+  `Orchestrator.kt`/`MainActivity.kt` for another device. The overlay's Y position is derived from
+  `Config.trackY`/`trackH`. Portrait capture is only partially handled: `notInMinigame` runs before
+  `Controller`'s orientation guard.
 - The accessibility service (`TapService`) must be enabled manually before the overlay or gestures
   work. `overlay/OverlayManager.kt` uses `TYPE_ACCESSIBILITY_OVERLAY`; there is no
   `SYSTEM_ALERT_WINDOW` permission.

@@ -18,7 +18,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import io.github.freew_w.fischdroid.minigame.Detector
+import io.github.freew_w.fischdroid.config.Config
 import io.github.freew_w.fischdroid.services.ScreenCaptureService
 
 class MainActivity : AppCompatActivity() {
@@ -74,30 +74,41 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        val rodControlEdittext = findViewById<EditText>(R.id.rodControl)
-        rodControlEdittext.onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) {
-                rodControlEdittext.setText("0.")
-            } else {
-                val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-                imm.hideSoftInputFromWindow(rodControlEdittext.windowToken, 0)
-
-                val text = rodControlEdittext.text.toString()
-                if (text.isEmpty()) {
-                    Toast.makeText(this, "Please enter a value", Toast.LENGTH_SHORT).show()
-                    return@OnFocusChangeListener
-                }
-
-                val control = text.toFloatOrNull()
-                if (control == null) {
-                    Toast.makeText(this, "Please enter a valid value", Toast.LENGTH_SHORT).show()
-                    rodControlEdittext.setText("0.0")
-                    return@OnFocusChangeListener
-                }
-
-                Detector.updateControl(control)
-            }
-        }
+        bindConfigField(
+            findViewById(R.id.rodControl),
+            get = { Config.rodControl },
+            parse = String::toFloatOrNull,
+            check = { it >= -0.3f },
+            set = { Config.rodControl = it },
+        )
+        bindConfigField(
+            findViewById(R.id.trackX),
+            get = { Config.trackX },
+            parse = String::toIntOrNull,
+            check = { it > 0 },
+            set = { Config.trackX = it },
+        )
+        bindConfigField(
+            findViewById(R.id.trackY),
+            get = { Config.trackY },
+            parse = String::toIntOrNull,
+            check = { it > 0 },
+            set = { Config.trackY = it },
+        )
+        bindConfigField(
+            findViewById(R.id.trackW),
+            get = { Config.trackW },
+            parse = String::toIntOrNull,
+            check = { it > 0 },
+            set = { Config.trackW = it },
+        )
+        bindConfigField(
+            findViewById(R.id.trackH),
+            get = { Config.trackH },
+            parse = String::toIntOrNull,
+            check = { it > 0 },
+            set = { Config.trackH = it },
+        )
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(
                 this, Manifest.permission.POST_NOTIFICATIONS
@@ -112,5 +123,36 @@ class MainActivity : AppCompatActivity() {
     private fun launchScreenCapture() {
         val manager = getSystemService(MediaProjectionManager::class.java)
         startMediaProjection.launch(manager.createScreenCaptureIntent())
+    }
+
+    /**
+     * Shows [get]'s current value and writes a parsed value back when the field loses focus.
+     * Invalid or empty input leaves the stored value untouched and restores the field text.
+     */
+    private fun <T> bindConfigField(
+        view: EditText,
+        get: () -> T,
+        parse: (String) -> T?,
+        check: (T) -> Boolean,
+        set: (T) -> Unit,
+    ) {
+        view.setText(get().toString())
+        view.onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                view.selectAll()
+                return@OnFocusChangeListener
+            }
+
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(view.windowToken, 0)
+
+            val value = parse(view.text.toString().trim())
+            if (value == null || !check(value)) {
+                Toast.makeText(this, R.string.invalid_config_value, Toast.LENGTH_SHORT).show()
+            } else {
+                set(value)
+            }
+            view.setText(get().toString())
+        }
     }
 }

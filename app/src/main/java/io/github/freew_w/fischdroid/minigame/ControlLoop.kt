@@ -34,8 +34,6 @@ object ControlLoop {
     /** Ignore the first few samples while the raw velocities settle. */
     private const val MIN_SAMPLES = 3
 
-    private const val RESET_AFTER_MS = 500L
-
     private var state: State? = null
 
     fun reset() {
@@ -45,7 +43,7 @@ object ControlLoop {
     /** Returns true to hold, false to release, or null while there are not enough samples. */
     fun decide(fish: Fish, bar: Bar, nowMs: Long): Boolean? {
         val s = state
-        if (s == null || nowMs - s.lastSampleMs > RESET_AFTER_MS) {
+        if (s == null) {
             state = State(nowMs, bar.center.toFloat(), 0f, fish.x.toFloat(), 0f, false, 1)
             return null
         }

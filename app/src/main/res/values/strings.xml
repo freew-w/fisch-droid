@@ -7,4 +7,10 @@
     <string name="test_click">Click</string>
     <string name="start_screen_capture">Start Screen capture</string>
     <string name="stop_screen_capture">Stop screen capture</string>
+    <string name="rod_control_label">Rod control:</string>
+    <string name="track_x_label">Track X:</string>
+    <string name="track_y_label">Y:</string>
+    <string name="track_w_label">W:</string>
+    <string name="track_h_label">H:</string>
+    <string name="invalid_config_value">Please enter a valid value</string>
 </resources>

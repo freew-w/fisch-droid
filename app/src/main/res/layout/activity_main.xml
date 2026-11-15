@@ -36,14 +36,74 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Rod control:" />
+            android:labelFor="@id/rodControl"
+            android:text="@string/rod_control_label" />
 
         <EditText
             android:id="@+id/rodControl"
             android:layout_width="80dp"
             android:layout_height="wrap_content"
             android:autofillHints=""
-            android:text="0.0" />
+            android:inputType="numberDecimal|numberSigned" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:labelFor="@id/trackX"
+            android:text="@string/track_x_label" />
+
+        <EditText
+            android:id="@+id/trackX"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:autofillHints=""
+            android:inputType="number" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:labelFor="@id/trackY"
+            android:text="@string/track_y_label" />
+
+        <EditText
+            android:id="@+id/trackY"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:autofillHints=""
+            android:inputType="number" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:labelFor="@id/trackW"
+            android:text="@string/track_w_label" />
+
+        <EditText
+            android:id="@+id/trackW"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:autofillHints=""
+            android:inputType="number" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:labelFor="@id/trackH"
+            android:text="@string/track_h_label" />
+
+        <EditText
+            android:id="@+id/trackH"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:autofillHints=""
+            android:inputType="number" />
 
     </LinearLayout>
 
