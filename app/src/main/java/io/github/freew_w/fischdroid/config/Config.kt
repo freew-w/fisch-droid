@@ -58,7 +58,7 @@ object Config {
         set(value) = prefs.edit { putFloat(KEY_VELOCITY_GAIN, value) }
 
     var switchBand: Float
-        get() = prefs.getFloat(KEY_SWITCH_BAND, 50f)
+        get() = prefs.getFloat(KEY_SWITCH_BAND, 200f)
         set(value) = prefs.edit { putFloat(KEY_SWITCH_BAND, value) }
 
     var castHoldX: Float

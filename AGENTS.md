@@ -49,9 +49,17 @@ AndroidX, not declared in `app/build.gradle.kts`.
   `u = 4.0 * (fishX - barX) - 3.2 * (barV - fishV)`, holding when `u > 50` or when already holding
   and `u > -50`, with a 3-sample warm-up and 500 ms reset. There is no bar smoothing or prediction.
 - `TapService.setHolding` holds via one continued accessibility stroke in 20 ms segments, alternating
-  the endpoint by 1 px because zero-motion segments are cancelled; release sends a final 1 ms
-  segment with `willContinue = false`. `press` remains the finite-tap API used by `MainActivity`,
+  the endpoint by 1 px because a zero-motion continuation produces no event and is reported as
+  cancelled; release sends a final 1 ms segment with `willContinue = false`. A fresh stroke always
+  starts its path on the hold point because the path start is where `ACTION_DOWN` lands.
+  `setHolding`/`press` are called from background coroutines, so requests and all hold state are
+  marshalled to the main thread. `press` remains the finite-tap API used by `MainActivity`,
   `shake/Clicker`, and `Orchestrator`.
+- A continuation must only be dispatched after the previous segment's result callback, never while
+  a segment is still in flight. `MotionEventInjector` records the touch point when the system
+  processes the gesture; an earlier continuation is rejected and the system then removes the still
+  queued `ACTION_DOWN`, so the game receives no touch at all. That made short holds vanish
+  completely; see `holdCallback`/`gesture` in `TapService`.
 - Detection and gesture coordinates are calibrated to a specific landscape screen. Track geometry
   and rod control are persisted by `config/Config.kt` and edited on the main screen; `FischDroidApp`
   initializes it at process start, and `Orchestrator` rebuilds `Detector.ScanSpec` each frame so edits

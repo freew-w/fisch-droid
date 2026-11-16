@@ -4,6 +4,8 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.content.Intent
 import android.graphics.Path
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import io.github.freew_w.fischdroid.config.Config
@@ -23,24 +25,56 @@ class TapService : AccessibilityService() {
         private const val HOLD_JITTER_PX = 1f
     }
 
+    /**
+     * Every gesture call and its result callback runs on this handler, so all the hold state
+     * below is confined to the main thread even though callers live on background dispatchers.
+     */
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     private var holdRequested = false
     private var holdX = 0f
     private var holdY = 0f
-    private var strokeEndX = 0f
-    private var strokeEndY = 0f
-    private var previousStroke: GestureDescription.StrokeDescription? = null
-    private var previousGesture: GestureDescription? = null
 
+    /** Where the last injected point ended up; a continuation has to start exactly here. */
+    private var pointX = 0f
+    private var pointY = 0f
+
+    /** The stroke the system accepted last, and the gesture carrying it while it is in flight. */
+    private var stroke: GestureDescription.StrokeDescription? = null
+    private var gesture: GestureDescription? = null
+
+    /**
+     * The injector only learns the touch point when it *processes* the gesture, not when
+     * `dispatchGesture` returns. A continuation arriving before that is rejected, and the system
+     * then drops the gesture's still-queued `ACTION_DOWN`, so the game never sees the touch at all.
+     * Every continuation below is therefore dispatched from a result callback (or while [gesture]
+     * is null), never on top of a gesture that is still in flight.
+     */
     private val holdCallback = object : GestureResultCallback() {
         override fun onCompleted(gestureDescription: GestureDescription?) {
-            if (gestureDescription !== previousGesture) return
-            if (holdRequested) sendHoldSegment() else sendEndSegment()
+            if (gestureDescription !== gesture) return
+            gesture = null
+
+            if (holdRequested) {
+                startHoldSegment()
+            } else if (stroke?.willContinue() == true) {
+                sendEndSegment()
+            } else {
+                stroke = null
+            }
         }
 
         override fun onCancelled(gestureDescription: GestureDescription?) {
-            if (gestureDescription !== previousGesture) return
-            Log.w(TAG, "hold segment cancelled")
-            resetHold()
+            if (gestureDescription !== gesture) return
+            // The system dropped the touch (another input event arrived, or it refused the
+            // continuation), so the stroke id chain is gone and the hold has to be re-pressed.
+            Log.w(TAG, "hold segment dropped")
+            gesture = null
+            stroke = null
+
+            if (holdRequested) {
+                startHoldSegment()
+            }
         }
     }
 
@@ -68,79 +102,113 @@ class TapService : AccessibilityService() {
     }
 
     fun press(x: Float, y: Float, duration: Long) {
-        resetHold()
+        mainHandler.post {
+            // The tap is a new gesture, so any tracked hold is no longer valid.
+            resetHold()
 
-        val tapPath = Path().apply { moveTo(x, y) }
-        val stroke = GestureDescription.StrokeDescription(tapPath, 0L, duration)
-        val gesture = GestureDescription.Builder().addStroke(stroke).build()
+            val tapPath = Path().apply { moveTo(x, y) }
+            val tapStroke = GestureDescription.StrokeDescription(tapPath, 0L, duration)
+            val tapGesture = GestureDescription.Builder().addStroke(tapStroke).build()
 
-        if (!dispatchGesture(gesture, object : GestureResultCallback() {
-                override fun onCompleted(gestureDescription: GestureDescription?) {
-                    Log.i(TAG, "press completed at $x, $y")
-                }
+            if (!dispatchGesture(tapGesture, object : GestureResultCallback() {
+                    override fun onCompleted(gestureDescription: GestureDescription?) {
+                        Log.i(TAG, "press completed at $x, $y")
+                    }
 
-                override fun onCancelled(gestureDescription: GestureDescription?) {
-                    Log.i(TAG, "press at $x, $y cancelled")
-                }
-            }, null)) {
-            Log.e(TAG, "press: dispatchGesture was rejected by the system.")
+                    override fun onCancelled(gestureDescription: GestureDescription?) {
+                        Log.i(TAG, "press at $x, $y cancelled")
+                    }
+                }, mainHandler)) {
+                Log.e(TAG, "press: dispatchGesture was rejected by the system.")
+            }
         }
     }
 
     fun setHolding(hold: Boolean, x: Float, y: Float) {
-        if (hold == holdRequested) return
-        holdRequested = hold
+        mainHandler.post { updateHolding(hold, x, y) }
+    }
+
+    private fun updateHolding(hold: Boolean, x: Float, y: Float) {
         if (hold) {
             holdX = x
             holdY = y
-            if (previousGesture != null) return
-            Log.i(TAG, "sending a fresh hold segment")
-            sendHoldSegment()
-        }
-    }
-
-    private fun sendHoldSegment() {
-        val previous = previousStroke
-        if (previous != null && !previous.willContinue()) {
-            Log.i(TAG, "cannot continue a hold segment")
-            resetHold()
+            if (holdRequested) return
+            holdRequested = true
+            // A gesture still in flight is either a hold segment that keeps itself going or a
+            // release that ends shortly; its callback continues from here.
+            if (gesture == null) startHoldSegment()
             return
         }
 
-        Log.i(TAG, "sending a hold segment")
-        val targetX = if (strokeEndX == holdX) holdX + HOLD_JITTER_PX else holdX
-        val path = Path().apply {
-            moveTo(strokeEndX, strokeEndY)
-            lineTo(targetX, holdY)
+        if (!holdRequested) return
+        holdRequested = false
+        if (gesture == null) {
+            if (stroke?.willContinue() == true) sendEndSegment() else resetHold()
         }
-        val next = previous?.continueStroke(path, 0L, STROKE_DURATION_MS, true)
-            ?: GestureDescription.StrokeDescription(path, 0L, STROKE_DURATION_MS, true)
+        // Otherwise the in-flight segment ends the hold when its callback arrives.
+    }
 
-        strokeEndX = targetX
-        strokeEndY = holdY
+    private fun startHoldSegment() {
+        // Never continue a gesture the injector has not seen yet; the pending callback will.
+        if (gesture != null) return
+
+        val previous = stroke
+        val continuing = previous != null && previous.willContinue()
+
+        val startX: Float
+        val startY: Float
+        if (continuing) {
+            startX = pointX
+            startY = pointY
+        } else {
+            // A fresh stroke starts *on* the button: the ACTION_DOWN has to land there, otherwise
+            // the gesture begins outside the control and is ignored even though it ends on it.
+            startX = holdX
+            startY = holdY
+            pointX = holdX
+            pointY = holdY
+            Log.i(TAG, "hold down at $holdX, $holdY")
+        }
+
+        // A continuation that does not move generates no MotionEvent and is reported as refused,
+        // so skirt one pixel around the hold point on every segment.
+        val endX = if (pointX == holdX) holdX + HOLD_JITTER_PX else holdX
+        val path = Path().apply {
+            moveTo(startX, startY)
+            lineTo(endX, holdY)
+        }
+
+        val next = if (continuing) {
+            previous.continueStroke(path, 0L, STROKE_DURATION_MS, true)
+        } else {
+            GestureDescription.StrokeDescription(path, 0L, STROKE_DURATION_MS, true)
+        }
+
+        pointX = endX
+        pointY = holdY
         dispatchSegment(next)
     }
 
     private fun sendEndSegment() {
-        val previous = previousStroke
+        if (gesture != null) return
+
+        val previous = stroke
         if (previous == null || !previous.willContinue()) {
-            Log.i(TAG, "cannot end a segment")
             resetHold()
             return
         }
 
-        Log.i(TAG, "sending an end segment")
-        val path = Path().apply { moveTo(strokeEndX, strokeEndY) }
-        val next = previous.continueStroke(path, 0L, RELEASE_DURATION_MS, false)
-        dispatchSegment(next)
+        // A zero-length continuation is still injected as a plain ACTION_UP.
+        val path = Path().apply { moveTo(pointX, pointY) }
+        dispatchSegment(previous.continueStroke(path, 0L, RELEASE_DURATION_MS, false))
     }
 
     private fun dispatchSegment(next: GestureDescription.StrokeDescription) {
-        val gesture = GestureDescription.Builder().addStroke(next).build()
-        previousStroke = next
-        previousGesture = gesture
+        val nextGesture = GestureDescription.Builder().addStroke(next).build()
+        stroke = next
+        gesture = nextGesture
 
-        if (!dispatchGesture(gesture, holdCallback, null)) {
+        if (!dispatchGesture(nextGesture, holdCallback, mainHandler)) {
             Log.e(TAG, "hold: dispatchGesture was rejected by the system.")
             resetHold()
         }
@@ -148,7 +216,7 @@ class TapService : AccessibilityService() {
 
     private fun resetHold() {
         holdRequested = false
-        previousStroke = null
-        previousGesture = null
+        stroke = null
+        gesture = null
     }
 }
