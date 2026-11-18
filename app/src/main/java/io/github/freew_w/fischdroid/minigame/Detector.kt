@@ -28,6 +28,7 @@ object Detector {
         val switchBand: Float,
         val castHoldX: Float,
         val castHoldY: Float,
+        val fishColor: Int,
     ) {
         val x1Iter = trackX - 5 // Inclusive
         val x2Iter = trackX + trackW - 1 + 5 // Inclusive
@@ -48,6 +49,7 @@ object Detector {
     // Constants
     private const val WIDTH_TOLERANCE = 4
     private const val NEXT_FISH_SCAN_RANGE_OFFSET = 20
+    private const val FISH_COLOR_TOLERANCE = 5
 
     // Runtime variables
     private val lab1 = DoubleArray(3)
@@ -99,10 +101,13 @@ object Detector {
     ): Pair<Fish?, Bar?> {
         var fish: Fish? = null
         val edges = mutableListOf<Int>()
+        val fishR = Color.red(spec.fishColor)
+        val fishG = Color.green(spec.fishColor)
+        val fishB = Color.blue(spec.fishColor)
 
         for (x in fishScanX1..fishScanX2) {
             val color = bitmap[x, scanY]
-            if (colorIntWithinRgbRange(color, 67, 75, 91, 5)) {
+            if (colorIntWithinRgbRange(color, fishR, fishG, fishB, FISH_COLOR_TOLERANCE)) {
                 fish = Fish(x)
             }
         }

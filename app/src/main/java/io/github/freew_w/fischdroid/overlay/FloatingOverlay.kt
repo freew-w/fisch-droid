@@ -85,7 +85,8 @@ class FloatingOverlay(service: AccessibilityService) {
         floatingButtonView.setOnTouchListener(dragListener)
         floatingButtonView.setOnClickListener {
             Orchestrator.started = !Orchestrator.started
-            floatingButtonView.findViewById<TextView>(R.id.btnToggle).text = if (Orchestrator.started) "Stop" else "Start"
+            floatingButtonView.findViewById<TextView>(R.id.btnToggle).text =
+                if (Orchestrator.started) "Stop" else "Start"
         }
         windowManager.addView(floatingButtonView, buttonParams)
 

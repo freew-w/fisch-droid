@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="@dimen/nudge_pad"
+    android:layout_height="@dimen/nudge_pad">
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_nudge_up"
+        style="@style/Widget.FischDroid.NudgeButton"
+        android:layout_width="@dimen/nudge_button"
+        android:layout_height="@dimen/nudge_button"
+        android:contentDescription="@string/setup_nudge_up"
+        app:icon="@drawable/ic_arrow_up"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_nudge_left"
+        style="@style/Widget.FischDroid.NudgeButton"
+        android:layout_width="@dimen/nudge_button"
+        android:layout_height="@dimen/nudge_button"
+        android:contentDescription="@string/setup_nudge_left"
+        app:icon="@drawable/ic_arrow_left"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/setup_nudge_label"
+        android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_nudge_right"
+        style="@style/Widget.FischDroid.NudgeButton"
+        android:layout_width="@dimen/nudge_button"
+        android:layout_height="@dimen/nudge_button"
+        android:contentDescription="@string/setup_nudge_right"
+        app:icon="@drawable/ic_arrow_right"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_nudge_down"
+        style="@style/Widget.FischDroid.NudgeButton"
+        android:layout_width="@dimen/nudge_button"
+        android:layout_height="@dimen/nudge_button"
+        android:contentDescription="@string/setup_nudge_down"
+        app:icon="@drawable/ic_arrow_down"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>

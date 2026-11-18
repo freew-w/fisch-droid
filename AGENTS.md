@@ -10,8 +10,15 @@ Package/application ID: `io.github.freew_w.fischdroid`. UI is classic Views/XML,
 Source layout: the root package holds `FischDroidApp`, `MainActivity`, and `Orchestrator`; `config/`
 holds the persisted `Config`; `services/` holds `ScreenCaptureService`/`TapService`; `minigame/`
 holds `Detector`/`Controller`/`ControlLoop`; `overlay/` holds `DetectionOverlay`/`FloatingOverlay`;
-`shake/` holds `Detector`/`Clicker`. Both `minigame/` and `shake/` define a `Detector`, so refer to
-them by package.
+`shake/` holds `Detector`/`Clicker`; `setup/` holds the first-run wizard, the full-screen pixel
+picker (`SetupActivity`/`PixelPickerView`) and its serializable field models. Both `minigame/` and
+`shake/` define a `Detector`, so refer to them by package.
+
+UI uses a fixed Material 3 (Material Components) theme: sea-blue primary, slate secondary, sand
+tertiary, with dynamic color explicitly disabled in `values*/themes.xml`. Colors live in
+`values/colors.xml` and `values-night/colors.xml`; shared card/input/icon-button styles live in
+`values/themes.xml`. Keep new screens on M3 components and theme attributes instead of ad-hoc
+colors.
 
 ## Build and verify
 
@@ -33,10 +40,11 @@ AndroidX, not declared in `app/build.gradle.kts`.
 
 ## Runtime wiring and gotchas
 
-- `MainActivity` immediately requests `POST_NOTIFICATIONS` on Android 13+, then MediaProjection
-  consent on launch; accepting starts `ScreenCaptureService` and automation. The buttons also open
-  accessibility settings, perform a hardcoded test tap at `(518, 910)`, request capture again, or
-  send `ACTION=STOP` to stop capture and remove the notification.
+- `MainActivity` opens `SetupWizardActivity` on first launch while `Config.setupComplete` is false.
+  After the wizard (or once setup is already complete) it requests `POST_NOTIFICATIONS` on Android
+  13+, then MediaProjection consent on launch; accepting starts `ScreenCaptureService` and
+  automation. Its buttons open accessibility settings, start/stop capture, and launch
+  `SetupActivity` for the track region and fish color.
 - `Orchestrator` is the per-frame pipeline entry point. When `minigame/Detector.notInMinigame`
   matches 3 of 4 hardcoded coin pixels, it taps `(1100, 600)` for 500 ms at most once per second and
   runs `shake/Clicker`; otherwise it runs `minigame/Controller`.
@@ -60,14 +68,19 @@ AndroidX, not declared in `app/build.gradle.kts`.
   processes the gesture; an earlier continuation is rejected and the system then removes the still
   queued `ACTION_DOWN`, so the game receives no touch at all. That made short holds vanish
   completely; see `holdCallback`/`gesture` in `TapService`.
-- Detection and gesture coordinates are calibrated to a specific landscape screen. Track geometry
-  and rod control are persisted by `config/Config.kt` and edited on the main screen; `FischDroidApp`
-  initializes it at process start, and `Orchestrator` rebuilds `Detector.ScanSpec` each frame so edits
-  apply live. Recalibrate the `Config` defaults, coin pixels in `minigame/Detector.kt`,
-  `HOLD_X`/`HOLD_Y` in `minigame/Controller.kt`, and the cast/test taps in
-  `Orchestrator.kt`/`MainActivity.kt` for another device. The overlay's Y position is derived from
-  `Config.trackY`/`trackH`. Portrait capture is only partially handled: `notInMinigame` runs before
-  `Controller`'s orientation guard.
+- Detection and gesture coordinates are calibrated to a specific landscape screen. Track geometry,
+  rod control and the fish line color are persisted by `config/Config.kt` and edited on the main
+  screen or in `setup/SetupActivity`; `FischDroidApp` initializes it at process start, and
+  `Orchestrator` rebuilds `Detector.ScanSpec` each frame so edits apply live (including
+  `Config.fishColor`). Recalibrate the `Config` defaults, coin pixels in `minigame/Detector.kt`,
+  `HOLD_X`/`HOLD_Y` in `minigame/Controller.kt`, and the cast taps in `Orchestrator.kt` for another
+  device. The overlay's Y position is derived from `Config.trackY`/`trackH`. Portrait capture is
+  only partially handled: `notInMinigame` runs before `Controller`'s orientation guard.
+- `setup/SetupActivity` is reusable: it takes a serializable list of `SetupField`s (`REGION` needs
+  two confirms, `POINT` and `COLOR` one) and returns a `Bundle` keyed by field id. Its image comes
+  from the photo picker; `PixelPickerView` maps view coordinates back to image pixels, so taps only
+  move the cursor and zoom/pan never changes the picked pixel. `Config.lastImageUri` remembers the
+  last screenshot. The wizard and main screen consume results through `SetupActivity.results()`.
 - The accessibility service (`TapService`) must be enabled manually before the overlay or gestures
   work. `overlay/OverlayManager.kt` uses `TYPE_ACCESSIBILITY_OVERLAY`; there is no
   `SYSTEM_ALERT_WINDOW` permission.
@@ -83,7 +96,8 @@ AndroidX, not declared in `app/build.gradle.kts`.
   remove it before committing.
 - The only committed detection fixtures are `app/src/test/resources/shake/`. Repo-root `Pictures/`
   is gitignored and may be absent; it is not runtime output.
-- Only `ExampleUnitTest` and `ExampleInstrumentedTest` currently exist; there are no detector or
-  control-loop tests. `shake/Detector.find(IntArray, width, height)` is pure JVM and testable
-  without Android; `minigame/Detector` depends on Android `Bitmap`/`ColorUtils`. Capture, control,
-  overlay, and gesture behavior still need device verification.
+- Only `ExampleUnitTest`, `ExampleInstrumentedTest` and `setup/RegionSelectionTest` currently exist;
+  there are no detector or control-loop tests. `shake/Detector.find(IntArray, width, height)` is pure
+  JVM and testable without Android; `minigame/Detector` depends on Android `Bitmap`/`ColorUtils`.
+  `RegionSelection.between` is plain Kotlin and unit-tested. Capture, control, overlay, gesture and
+  setup-widget behavior still need device verification.

@@ -30,6 +30,7 @@ object Orchestrator {
         switchBand = Config.switchBand,
         castHoldX = Config.castHoldX,
         castHoldY = Config.castHoldY,
+        fishColor = Config.fishColor,
     )
 
     suspend fun processFrame(bitmap: Bitmap, frameWidth: Int, frameHeight: Int) {

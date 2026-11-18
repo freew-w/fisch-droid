@@ -26,6 +26,16 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".setup.SetupWizardActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".setup.SetupActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <service
             android:name=".services.TapService"
             android:exported="true"

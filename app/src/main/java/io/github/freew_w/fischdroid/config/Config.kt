@@ -2,6 +2,7 @@ package io.github.freew_w.fischdroid.config
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.graphics.Color
 import androidx.core.content.edit
 
 object Config {
@@ -16,6 +17,9 @@ object Config {
     private const val KEY_SWITCH_BAND = "switch_band"
     private const val KEY_CAST_HOLD_X = "cast_hold_x"
     private const val KEY_CAST_HOLD_Y = "cast_hold_y"
+    private const val KEY_FISH_COLOR = "fish_color"
+    private const val KEY_SETUP_COMPLETE = "setup_complete"
+    private const val KEY_LAST_IMAGE_URI = "last_image_uri"
 
     private var preferences: SharedPreferences? = null
 
@@ -30,19 +34,19 @@ object Config {
             ?: error("Config.init(context) must be called before reading or writing configuration")
 
     var trackX: Int
-        get() = prefs.getInt(KEY_TRACK_X, 564)
+        get() = prefs.getInt(KEY_TRACK_X, 0)
         set(value) = prefs.edit { putInt(KEY_TRACK_X, value) }
 
     var trackY: Int
-        get() = prefs.getInt(KEY_TRACK_Y, 842)
+        get() = prefs.getInt(KEY_TRACK_Y, 0)
         set(value) = prefs.edit { putInt(KEY_TRACK_Y, value) }
 
     var trackW: Int
-        get() = prefs.getInt(KEY_TRACK_W, 764)
+        get() = prefs.getInt(KEY_TRACK_W, 0)
         set(value) = prefs.edit { putInt(KEY_TRACK_W, value) }
 
     var trackH: Int
-        get() = prefs.getInt(KEY_TRACK_H, 31)
+        get() = prefs.getInt(KEY_TRACK_H, 0)
         set(value) = prefs.edit { putInt(KEY_TRACK_H, value) }
 
     var rodControl: Float
@@ -68,4 +72,18 @@ object Config {
     var castHoldY: Float
         get() = prefs.getFloat(KEY_CAST_HOLD_Y, 600f)
         set(value) = prefs.edit { putFloat(KEY_CAST_HOLD_Y, value) }
+
+    var fishColor: Int
+        get() = prefs.getInt(KEY_FISH_COLOR, Color.rgb(67, 75, 91))
+        set(value) = prefs.edit { putInt(KEY_FISH_COLOR, value) }
+
+    var setupComplete: Boolean
+        get() = prefs.getBoolean(KEY_SETUP_COMPLETE, false)
+        set(value) = prefs.edit { putBoolean(KEY_SETUP_COMPLETE, value) }
+
+    var lastImageUri: String?
+        get() = prefs.getString(KEY_LAST_IMAGE_URI, null)
+        set(value) = prefs.edit {
+            if (value == null) remove(KEY_LAST_IMAGE_URI) else putString(KEY_LAST_IMAGE_URI, value)
+        }
 }

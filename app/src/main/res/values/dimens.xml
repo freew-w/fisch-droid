@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 8dp spacing scale plus the few sizes used by the setup screens. -->
+    <dimen name="space_xs">4dp</dimen>
+    <dimen name="space_s">8dp</dimen>
+    <dimen name="space_m">12dp</dimen>
+    <dimen name="space_l">16dp</dimen>
+    <dimen name="space_xl">24dp</dimen>
+    <dimen name="space_xxl">32dp</dimen>
+
+    <dimen name="screen_padding">16dp</dimen>
+    <dimen name="card_gap">16dp</dimen>
+    <dimen name="card_padding">20dp</dimen>
+    <dimen name="icon_badge">44dp</dimen>
+    <dimen name="icon_badge_large">104dp</dimen>
+    <dimen name="color_swatch">48dp</dimen>
+    <dimen name="color_swatch_small">20dp</dimen>
+    <dimen name="nudge_button">48dp</dimen>
+    <dimen name="nudge_pad">156dp</dimen>
+</resources>

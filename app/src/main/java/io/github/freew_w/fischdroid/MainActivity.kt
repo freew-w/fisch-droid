@@ -3,14 +3,15 @@ package io.github.freew_w.fischdroid
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
 import android.view.inputmethod.InputMethodManager
-import android.widget.Button
 import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,10 +19,18 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.google.android.material.appbar.MaterialToolbar
 import io.github.freew_w.fischdroid.config.Config
 import io.github.freew_w.fischdroid.services.ScreenCaptureService
+import io.github.freew_w.fischdroid.setup.RegionSelection
+import io.github.freew_w.fischdroid.setup.SetupActivity
+import io.github.freew_w.fischdroid.setup.SetupField
+import io.github.freew_w.fischdroid.setup.SetupWizardActivity
+import io.github.freew_w.fischdroid.setup.toHexColor
 
 class MainActivity : AppCompatActivity() {
+    private val boundFields = mutableListOf<Pair<EditText, () -> Any?>>()
+
     private val startMediaProjection = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -40,6 +49,31 @@ class MainActivity : AppCompatActivity() {
         launchScreenCapture()
     }
 
+    private val wizardLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { _ ->
+        updateConfigUi()
+    }
+
+    private val setupLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != RESULT_OK) return@registerForActivityResult
+        val values = SetupActivity.results(result.data) ?: return@registerForActivityResult
+
+        values.getIntArray(SetupActivity.FIELD_ID_REGION)?.takeIf { it.size == 4 }?.let { region ->
+            Config.trackX = region[0]
+            Config.trackY = region[1]
+            Config.trackW = region[2]
+            Config.trackH = region[3]
+        }
+        if (values.containsKey(SetupActivity.FIELD_ID_FISH_COLOR)) {
+            Config.fishColor = values.getInt(SetupActivity.FIELD_ID_FISH_COLOR)
+        }
+
+        updateConfigUi()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -50,28 +84,45 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        findViewById<Button>(R.id.btn_enable_accessibility_service).setOnClickListener {
+        findViewById<MaterialToolbar>(R.id.toolbar).setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_setup_widget -> {
+                    openSetupWidget()
+                    true
+                }
+
+                R.id.action_setup_wizard -> {
+                    wizardLauncher.launch(Intent(this, SetupWizardActivity::class.java))
+                    true
+                }
+
+                else -> false
+            }
+        }
+
+        findViewById<View>(R.id.btn_enable_accessibility_service).setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             Toast.makeText(this, R.string.enable_accessibility_hint, Toast.LENGTH_LONG).show()
         }
 
-        findViewById<Button>(R.id.btn_start_capture).setOnClickListener {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(
-                    this, Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-            } else {
-                launchScreenCapture()
-            }
+        findViewById<View>(R.id.btn_start_capture).setOnClickListener {
+            requestNotificationsThenCapture()
         }
 
-        findViewById<Button>(R.id.btn_stop_capture).setOnClickListener {
+        findViewById<View>(R.id.btn_stop_capture).setOnClickListener {
             startService(
                 Intent(this, ScreenCaptureService::class.java).putExtra(
                     "ACTION", "STOP"
                 )
             )
+        }
+
+        findViewById<View>(R.id.btn_pick_track_region).setOnClickListener {
+            openRegionPicker()
+        }
+
+        findViewById<View>(R.id.btn_pick_fish_color).setOnClickListener {
+            openColorPicker()
         }
 
         bindConfigField(
@@ -145,6 +196,84 @@ class MainActivity : AppCompatActivity() {
             set = { Config.castHoldY = it },
         )
 
+        updateConfigUi()
+
+        if (savedInstanceState == null && !Config.setupComplete) {
+            wizardLauncher.launch(Intent(this, SetupWizardActivity::class.java))
+        }
+    }
+
+    private fun openRegionPicker() {
+        val initial = RegionSelection(
+            x = Config.trackX,
+            y = Config.trackY,
+            width = Config.trackW,
+            height = Config.trackH,
+        )
+        setupLauncher.launch(
+            SetupActivity.intent(
+                this,
+                listOf(
+                    SetupField.region(
+                        SetupActivity.FIELD_ID_REGION,
+                        getString(R.string.setup_field_region),
+                        initial,
+                    )
+                ),
+            )
+        )
+    }
+
+    private fun openColorPicker() {
+        setupLauncher.launch(
+            SetupActivity.intent(
+                this,
+                listOf(
+                    SetupField.color(
+                        SetupActivity.FIELD_ID_FISH_COLOR,
+                        getString(R.string.setup_field_color),
+                        Config.fishColor,
+                    )
+                ),
+            )
+        )
+    }
+
+    private fun openSetupWidget() {
+        val region = RegionSelection(Config.trackX, Config.trackY, Config.trackW, Config.trackH)
+        setupLauncher.launch(
+            SetupActivity.intent(
+                this,
+                listOf(
+                    SetupField.region(
+                        SetupActivity.FIELD_ID_REGION,
+                        getString(R.string.setup_field_region),
+                        region,
+                    ),
+                    SetupField.color(
+                        SetupActivity.FIELD_ID_FISH_COLOR,
+                        getString(R.string.setup_field_color),
+                        Config.fishColor,
+                    ),
+                ),
+            )
+        )
+    }
+
+    private fun updateConfigUi() {
+        // The fish color card
+        val color = Config.fishColor
+        findViewById<View>(R.id.fish_color_swatch).backgroundTintList =
+            ColorStateList.valueOf(color)
+        findViewById<TextView>(R.id.tv_fish_color_hex).text = color.toHexColor()
+
+        // The minigame fields
+        boundFields.forEach { (view, get) ->
+            view.setText(get().toString())
+        }
+    }
+
+    private fun requestNotificationsThenCapture() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(
                 this, Manifest.permission.POST_NOTIFICATIONS
             ) != PackageManager.PERMISSION_GRANTED
@@ -171,6 +300,8 @@ class MainActivity : AppCompatActivity() {
         check: (T) -> Boolean,
         set: (T) -> Unit,
     ) {
+        boundFields += view to get
+
         view.setText(get().toString())
         view.onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {

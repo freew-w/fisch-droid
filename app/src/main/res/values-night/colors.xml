@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark counterpart of the fixed sea-blue scheme. Same roles, darker tones. -->
+    <color name="md_primary">#86D0F0</color>
+    <color name="md_on_primary">#00344A</color>
+    <color name="md_primary_container">#004C6B</color>
+    <color name="md_on_primary_container">#C6E8F8</color>
+
+    <color name="md_secondary">#B3CAD6</color>
+    <color name="md_on_secondary">#1E333D</color>
+    <color name="md_secondary_container">#354A55</color>
+    <color name="md_on_secondary_container">#CEE6F1</color>
+
+    <color name="md_tertiary">#FFB870</color>
+    <color name="md_on_tertiary">#4A2800</color>
+    <color name="md_tertiary_container">#693C00</color>
+    <color name="md_on_tertiary_container">#FFDDB8</color>
+
+    <color name="md_error">#FFB4AB</color>
+    <color name="md_on_error">#690005</color>
+    <color name="md_error_container">#93000A</color>
+    <color name="md_on_error_container">#FFDAD6</color>
+
+    <color name="md_background">#0F1417</color>
+    <color name="md_on_background">#DFE3E6</color>
+    <color name="md_surface">#0F1417</color>
+    <color name="md_on_surface">#DFE3E6</color>
+    <color name="md_surface_variant">#40484C</color>
+    <color name="md_on_surface_variant">#BFC8CD</color>
+    <color name="md_surface_container_lowest">#0A0F12</color>
+    <color name="md_surface_container_low">#171C1F</color>
+    <color name="md_surface_container">#1B2024</color>
+    <color name="md_surface_container_high">#252B2E</color>
+    <color name="md_surface_container_highest">#303639</color>
+
+    <color name="md_outline">#8A9297</color>
+    <color name="md_outline_variant">#40484C</color>
+    <color name="md_inverse_surface">#DFE3E6</color>
+    <color name="md_inverse_on_surface">#2C3134</color>
+</resources>
