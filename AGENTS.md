@@ -9,7 +9,8 @@ Package/application ID: `io.github.freew_w.fischdroid`. UI is classic Views/XML,
 
 Source layout: the root package holds `FischDroidApp`, `MainActivity`, and `Orchestrator`; `config/`
 holds the persisted `Config`; `services/` holds `ScreenCaptureService`/`TapService`; `minigame/`
-holds `Detector`/`Controller`/`ControlLoop`; `overlay/` holds `DetectionOverlay`/`FloatingOverlay`;
+holds `CoinsDetector`/`Detector`/`Controller`/`ControlLoop`; `overlay/` holds
+`DetectionOverlay`/`FloatingOverlay`;
 `shake/` holds `Detector`/`Clicker`; `setup/` holds the first-run wizard, the full-screen pixel
 picker (`SetupActivity`/`PixelPickerView`) and its serializable field models. Both `minigame/` and
 `shake/` define a `Detector`, so refer to them by package.
@@ -46,8 +47,16 @@ AndroidX, not declared in `app/build.gradle.kts`.
   automation. Its buttons open accessibility settings, start/stop capture, and launch
   `SetupActivity` for the track region and fish color.
 - `Orchestrator` is the per-frame pipeline entry point. When `minigame/Detector.notInMinigame`
-  matches 3 of 4 hardcoded coin pixels, it taps `(1100, 600)` for 500 ms at most once per second and
-  runs `shake/Clicker`; otherwise it runs `minigame/Controller`.
+  finds the cream "C$" HUD indicator (via `minigame/CoinsDetector`), it taps `(1100, 600)` for 500 ms
+  at most once per second and runs `shake/Clicker`; otherwise it runs `minigame/Controller`.
+- `minigame/CoinsDetector` is calibration-free: it masks the cream `#FFFDE4` fill (+/-12 per
+  channel), scans only the bottom-right ROI (`x, y >= 0.85` of the frame), keeps components 1.8-5.5 %
+  of frame height with glyph aspect 0.30-1.30, then takes the rightmost `C`/`$` pair (combined aspect
+  0.85-1.60, height ratio <= 1.45, right edge within 0.8 glyph heights) whose centre is at
+  `x >= 0.93 w`, `y >= 0.88 h`. It needs no per-device configuration; color and ratio tunables are
+  the constants at the top of `CoinsDetector.kt`, and inputs smaller than 320x240 are treated as C$
+  crops. While a full-screen overlay hides "C$", `notInMinigame` reads false (in minigame), which is
+  accepted.
 - `shake/Detector` is calibration-free: it looks for five equal-height white glyphs in a roughly
   4:1 row inside a bright ring and dark disk, rejecting the jump button's arrow. `shake/Clicker`
   detects at most every 100 ms and taps the button center for 40 ms while `Orchestrator` routes
@@ -72,10 +81,11 @@ AndroidX, not declared in `app/build.gradle.kts`.
   rod control and the fish line color are persisted by `config/Config.kt` and edited on the main
   screen or in `setup/SetupActivity`; `FischDroidApp` initializes it at process start, and
   `Orchestrator` rebuilds `Detector.ScanSpec` each frame so edits apply live (including
-  `Config.fishColor`). Recalibrate the `Config` defaults, coin pixels in `minigame/Detector.kt`,
+  `Config.fishColor`). Recalibrate the `Config` defaults,
   `HOLD_X`/`HOLD_Y` in `minigame/Controller.kt`, and the cast taps in `Orchestrator.kt` for another
-  device. The overlay's Y position is derived from `Config.trackY`/`trackH`. Portrait capture is
-  only partially handled: `notInMinigame` runs before `Controller`'s orientation guard.
+  device; the C$ detector itself is calibration-free and should only need its color/ratio
+  constants adjusted. The overlay's Y position is derived from `Config.trackY`/`trackH`. Portrait
+  capture is only partially handled: `notInMinigame` runs before `Controller`'s orientation guard.
 - `setup/SetupActivity` is reusable: it takes a serializable list of `SetupField`s (`REGION` needs
   two confirms, `POINT` and `COLOR` one) and returns a `Bundle` keyed by field id. Its image comes
   from the photo picker; `PixelPickerView` maps view coordinates back to image pixels, so taps only
@@ -94,10 +104,15 @@ AndroidX, not declared in `app/build.gradle.kts`.
 
 - `ScreenCaptureService` has no built-in frame dump. Add temporary debug saving when needed and
   remove it before committing.
-- The only committed detection fixtures are `app/src/test/resources/shake/`. Repo-root `Pictures/`
-  is gitignored and may be absent; it is not runtime output.
-- Only `ExampleUnitTest`, `ExampleInstrumentedTest` and `setup/RegionSelectionTest` currently exist;
-  there are no detector or control-loop tests. `shake/Detector.find(IntArray, width, height)` is pure
-  JVM and testable without Android; `minigame/Detector` depends on Android `Bitmap`/`ColorUtils`.
+- The committed detection fixtures are `app/src/test/resources/shake/` and
+  `app/src/test/resources/coins/` (four full frames, two C$ crops, a jump-button crop). Repo-root
+  `Pictures/` is gitignored and may be absent; it is not runtime output.
+- `ExampleUnitTest`, `ExampleInstrumentedTest`, `setup/RegionSelectionTest` and
+  `minigame/CoinsDetectorTest`/`CoinsDetectorBitmapTest` currently exist; there are no control-loop
+  tests.
+  `shake/Detector.find(IntArray, width, height)` is pure JVM and testable without Android;
+  `CoinsDetector.find(IntArray, width, height)` is likewise pure JVM, while `CoinsDetectorBitmapTest`
+  uses a test-only Robolectric dependency to exercise the `Bitmap`/`notInMinigame` path.
+  `minigame/Detector` otherwise depends on Android `Bitmap`/`ColorUtils`.
   `RegionSelection.between` is plain Kotlin and unit-tested. Capture, control, overlay, gesture and
   setup-widget behavior still need device verification.

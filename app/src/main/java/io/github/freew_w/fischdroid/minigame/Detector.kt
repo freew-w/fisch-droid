@@ -10,8 +10,6 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 object Detector {
-    private data class PointAndColor(val x: Int, val y: Int, val r: Int, val g: Int, val b: Int)
-
     data class Fish(val x: Int)
     data class Bar(val x1: Int, val x2: Int) {
         val center = (x1 + x2) / 2
@@ -38,13 +36,6 @@ object Detector {
         val barWidth = (trackW * (0.3f + control) + 1).toInt() // Plus one to round up
         val nextBarScanRangeOffset = (barWidth * 0.7f).toInt()
     }
-
-    private val LIST_OF_COINS_POINT_COLOR = listOf(
-        PointAndColor(1846, 973, 255, 253, 228),
-        PointAndColor(1872, 960, 255, 253, 228),
-        PointAndColor(1852, 980, 255, 253, 228),
-        PointAndColor(1872, 979, 255, 253, 228),
-    )
 
     // Constants
     private const val WIDTH_TOLERANCE = 4
@@ -207,18 +198,7 @@ object Detector {
         return fish to bar
     }
 
-    fun notInMinigame(bitmap: Bitmap): Boolean {
-        var match = 0
-        for ((x, y, r, g, b) in LIST_OF_COINS_POINT_COLOR) {
-            if (colorIntWithinRgbRange(
-                    bitmap[x, y], r, g, b, 5
-                )
-            ) {
-                match++
-            }
-        }
-        return match >= 3
-    }
+    fun notInMinigame(bitmap: Bitmap): Boolean = CoinsDetector.isVisible(bitmap)
 
     fun reset() {
         lastFish = null
