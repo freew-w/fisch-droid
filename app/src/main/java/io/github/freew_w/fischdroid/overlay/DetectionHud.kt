@@ -3,13 +3,15 @@ package io.github.freew_w.fischdroid.overlay
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.view.WindowManager
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
+import io.github.freew_w.fischdroid.R
 import io.github.freew_w.fischdroid.automation.DetectionHudSink
 import io.github.freew_w.fischdroid.detection.Bar
 import io.github.freew_w.fischdroid.detection.Fish
@@ -29,18 +31,56 @@ class DetectionHud(
         context: Context,
         private val drawY: () -> Float,
     ) : View(context) {
-        private val fishPaint = Paint().apply { color = Color.RED; style = Paint.Style.FILL }
-        private val barPaint = Paint().apply {
-            color = Color.argb(128, 0, 255, 0) // 50% opacity
+        private val density = resources.displayMetrics.density
+
+        private fun dp(value: Float): Float = value * density
+
+        private val barHeight = dp(8f)
+        private val fishRadius = dp(6f)
+        private val fishHaloStroke = dp(1f)
+        private val shakeStroke = dp(3f)
+        private val shakeHaloStroke = dp(6f)
+        private val dotRadius = dp(3f)
+
+        private val secondary = ContextCompat.getColor(context, R.color.md_secondary)
+        private val primary = ContextCompat.getColor(context, R.color.md_primary)
+        private val halo = ColorUtils.setAlphaComponent(
+            ContextCompat.getColor(context, R.color.md_inverse_surface), 140
+        )
+
+        private val barHaloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = halo
             style = Paint.Style.FILL
         }
-        private val shakePaint = Paint().apply {
-            color = Color.CYAN
-            style = Paint.Style.STROKE
-            strokeWidth = 4f
+        private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = secondary
+            style = Paint.Style.FILL
         }
-        private val shakeCenterPaint =
-            Paint().apply { color = Color.CYAN; style = Paint.Style.FILL }
+        private val fishHaloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = halo
+            style = Paint.Style.STROKE
+            strokeWidth = fishHaloStroke
+        }
+        private val fishPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = primary
+            style = Paint.Style.FILL
+        }
+        private val shakeHaloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = halo
+            style = Paint.Style.STROKE
+            strokeWidth = shakeHaloStroke
+            strokeCap = Paint.Cap.ROUND
+        }
+        private val shakePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = secondary
+            style = Paint.Style.STROKE
+            strokeWidth = shakeStroke
+            strokeCap = Paint.Cap.ROUND
+        }
+        private val shakeCenterPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = secondary
+            style = Paint.Style.FILL
+        }
 
         var fish: Fish? = null
         var bar: Bar? = null
@@ -55,21 +95,51 @@ class DetectionHud(
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
 
-            val y = drawY()
+            // Shared horizontal baseline: every marker is centred vertically on the HUD line.
+            val centerY = drawY()
+            val barRadius = barHeight / 2f
+            val haloPad = dp(2f)
+
+            // Halos go down first so each theme-coloured marker keeps a contrasting edge
+            // over bright water or dark cave frames.
+            bar?.let {
+                canvas.drawRoundRect(
+                    it.x1.toFloat() - haloPad,
+                    centerY - barRadius - haloPad,
+                    it.x2.toFloat() + haloPad,
+                    centerY + barRadius + haloPad,
+                    barRadius + haloPad,
+                    barRadius + haloPad,
+                    barHaloPaint,
+                )
+            }
 
             bar?.let {
-                canvas.drawRect(it.x1.toFloat(), y, it.x2.toFloat(), y + 10, barPaint)
+                canvas.drawRoundRect(
+                    it.x1.toFloat(),
+                    centerY - barRadius,
+                    it.x2.toFloat(),
+                    centerY + barRadius,
+                    barRadius,
+                    barRadius,
+                    barPaint,
+                )
             }
 
             fish?.let {
-                canvas.drawRect(it.x.toFloat(), y, it.x.toFloat() + 5f, y + 10, fishPaint)
+                canvas.drawCircle(
+                    it.x.toFloat(), centerY, fishRadius + fishHaloStroke, fishHaloPaint
+                )
+                canvas.drawCircle(it.x.toFloat(), centerY, fishRadius, fishPaint)
             }
 
             shake?.let {
-                canvas.drawCircle(
-                    it.centerX.toFloat(), it.centerY.toFloat(), it.radius.toFloat(), shakePaint
-                )
-                canvas.drawCircle(it.centerX.toFloat(), it.centerY.toFloat(), 6f, shakeCenterPaint)
+                val centerX = it.centerX.toFloat()
+                val y = it.centerY.toFloat()
+                val radius = it.radius.toFloat()
+                canvas.drawCircle(centerX, y, radius, shakeHaloPaint)
+                canvas.drawCircle(centerX, y, radius, shakePaint)
+                canvas.drawCircle(centerX, y, dotRadius, shakeCenterPaint)
             }
         }
     }

@@ -1,13 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  Overlay toggle bubble. Styled with the same M3 filled button as the main screen's
+  Start/Stop capture pair, with capsule corners to echo the detection HUD markers.
+  Text, icon and tint are set by FloatingControls.updateLabel().
+-->
+<com.google.android.material.button.MaterialButton xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/btnToggle"
+    style="@style/Widget.Material3.Button.Icon"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:orientation="vertical">
-
-    <Button
-        android:id="@+id/btnToggle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Start" />
-
-</androidx.appcompat.widget.LinearLayoutCompat>
+    android:minWidth="0dp"
+    android:paddingStart="16dp"
+    android:paddingEnd="20dp"
+    android:text="@string/overlay_toggle_start"
+    app:icon="@drawable/ic_play"
+    app:iconGravity="textStart"
+    app:iconPadding="6dp"
+    android:insetLeft="0dp"
+    android:insetRight="0dp"
+    android:insetTop="0dp"
+    android:insetBottom="0dp"
+    app:shapeAppearanceOverlay="@style/ShapeAppearance.FischDroid.Capsule"
+    app:strokeColor="?attr/colorOutlineVariant"
+    app:strokeWidth="1dp" />

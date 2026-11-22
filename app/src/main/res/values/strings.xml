@@ -9,6 +9,8 @@
 
     <string name="start_screen_capture">Start capture</string>
     <string name="stop_screen_capture">Stop capture</string>
+    <string name="overlay_toggle_start">Start</string>
+    <string name="overlay_toggle_stop">Stop</string>
     <string name="invalid_config_value">Please enter a valid value</string>
 
     <string name="rod_control_label">Rod control</string>

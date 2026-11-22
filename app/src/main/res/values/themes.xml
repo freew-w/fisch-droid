@@ -83,4 +83,10 @@
         <item name="android:minWidth">48dp</item>
         <item name="android:minHeight">48dp</item>
     </style>
+
+    <!-- Pill corners, matching the detection HUD's rounded capsules. -->
+    <style name="ShapeAppearance.FischDroid.Capsule" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
 </resources>
