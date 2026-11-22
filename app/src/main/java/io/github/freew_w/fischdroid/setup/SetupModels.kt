@@ -9,7 +9,7 @@ enum class SetupFieldType {
     /** Two pixels: top-left, then bottom-right. Stored as x, y, width, height. */
     REGION,
 
-    /** A single pixel. Not used by the app yet, kept for future calibration fields. */
+    /** A single screen point (the cast target). Stored as x, y. */
     POINT,
 
     /** The RGB color of a single pixel. */
@@ -59,14 +59,24 @@ data class SetupField(
                 id = id,
                 label = label,
                 type = SetupFieldType.REGION,
-                initialRegion = initial
+                initialRegion = initial,
             )
 
         fun point(id: String, label: String, initial: PixelPoint? = null) =
-            SetupField(id = id, label = label, type = SetupFieldType.POINT, initialPoint = initial)
+            SetupField(
+                id = id,
+                label = label,
+                type = SetupFieldType.POINT,
+                initialPoint = initial,
+            )
 
         fun color(id: String, label: String, initial: Int? = null) =
-            SetupField(id = id, label = label, type = SetupFieldType.COLOR, initialColor = initial)
+            SetupField(
+                id = id,
+                label = label,
+                type = SetupFieldType.COLOR,
+                initialColor = initial,
+            )
     }
 }
 

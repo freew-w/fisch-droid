@@ -22,6 +22,7 @@ import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.appbar.MaterialToolbar
 import io.github.freew_w.fischdroid.config.Config
 import io.github.freew_w.fischdroid.services.ScreenCaptureService
+import io.github.freew_w.fischdroid.setup.PixelPoint
 import io.github.freew_w.fischdroid.setup.RegionSelection
 import io.github.freew_w.fischdroid.setup.SetupActivity
 import io.github.freew_w.fischdroid.setup.SetupField
@@ -69,6 +70,10 @@ class MainActivity : AppCompatActivity() {
         }
         if (values.containsKey(SetupActivity.FIELD_ID_FISH_COLOR)) {
             Config.fishColor = values.getInt(SetupActivity.FIELD_ID_FISH_COLOR)
+        }
+        values.getIntArray(SetupActivity.FIELD_ID_CAST_POINT)?.takeIf { it.size == 2 }?.let { point ->
+            Config.castHoldX = point[0]
+            Config.castHoldY = point[1]
         }
 
         updateConfigUi()
@@ -123,6 +128,10 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<View>(R.id.btn_pick_fish_color).setOnClickListener {
             openColorPicker()
+        }
+
+        findViewById<View>(R.id.btn_pick_cast_point).setOnClickListener {
+            openCastPicker()
         }
 
         bindConfigField(
@@ -184,14 +193,14 @@ class MainActivity : AppCompatActivity() {
         bindConfigField(
             findViewById(R.id.et_cast_hold_x),
             get = { Config.castHoldX },
-            parse = String::toFloatOrNull,
+            parse = String::toIntOrNull,
             check = { it >= 0 },
             set = { Config.castHoldX = it },
         )
         bindConfigField(
             findViewById(R.id.et_cast_hold_y),
             get = { Config.castHoldY },
-            parse = String::toFloatOrNull,
+            parse = String::toIntOrNull,
             check = { it >= 0 },
             set = { Config.castHoldY = it },
         )
@@ -233,6 +242,21 @@ class MainActivity : AppCompatActivity() {
                         SetupActivity.FIELD_ID_FISH_COLOR,
                         getString(R.string.setup_field_color),
                         Config.fishColor,
+                    )
+                ),
+            )
+        )
+    }
+
+    private fun openCastPicker() {
+        setupLauncher.launch(
+            SetupActivity.intent(
+                this,
+                listOf(
+                    SetupField.point(
+                        SetupActivity.FIELD_ID_CAST_POINT,
+                        getString(R.string.setup_field_cast),
+                        PixelPoint(Config.castHoldX, Config.castHoldY),
                     )
                 ),
             )

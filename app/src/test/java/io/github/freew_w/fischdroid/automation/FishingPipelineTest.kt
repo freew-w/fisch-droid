@@ -22,7 +22,7 @@ class FishingPipelineTest {
     private val settings = Settings(
         track = TrackGeometry(x = 0, y = 0, width = 1000, height = 100, rodControl = 0f),
         control = ControlTuning(positionGain = 4f, velocityGain = 3.2f, switchBand = 50f),
-        cast = CastTarget(x = 10f, y = 20f),
+        cast = CastTarget(x = 10, y = 20),
         fishColor = 0,
     )
 
@@ -46,7 +46,7 @@ class FishingPipelineTest {
         pipeline.step(FrameObservation(inMinigame = false), settings, nowMs = 2_000L)
 
         assertEquals(GameState.SEARCHING, pipeline.currentState)
-        assertEquals(listOf(Triple(10f, 20f, 500L)), gestures.presses)
+        assertEquals(listOf(Triple(10, 20, 500L)), gestures.presses)
     }
 
     @Test
@@ -69,7 +69,7 @@ class FishingPipelineTest {
         pipeline.step(FrameObservation(inMinigame = false, shakeButton = button), settings, 2_000L)
         assertEquals(GameState.SHAKING, pipeline.currentState)
         assertEquals(1, gestures.presses.size)
-        assertEquals(500f, gestures.presses[0].first)
+        assertEquals(500, gestures.presses[0].first)
         assertEquals(40L, gestures.presses[0].third)
 
         pipeline.step(FrameObservation(inMinigame = false, shakeButton = button), settings, 2_050L)
@@ -87,7 +87,7 @@ class FishingPipelineTest {
 
         pipeline.step(FrameObservation(inMinigame = false), settings, 3_200L)
         assertEquals(3, gestures.presses.size)
-        assertEquals(10f, gestures.presses[2].first)
+        assertEquals(10, gestures.presses[2].first)
     }
 
     @Test
@@ -173,14 +173,14 @@ class FishingPipelineTest {
     }
 
     private class FakeGestures : GestureSink {
-        val presses = mutableListOf<Triple<Float, Float, Long>>()
+        val presses = mutableListOf<Triple<Int, Int, Long>>()
         val holds = mutableListOf<Boolean>()
 
-        override fun press(x: Float, y: Float, durationMs: Long) {
+        override fun press(x: Int, y: Int, durationMs: Long) {
             presses += Triple(x, y, durationMs)
         }
 
-        override fun setHolding(hold: Boolean, x: Float, y: Float) {
+        override fun setHolding(hold: Boolean, x: Int, y: Int) {
             holds += hold
         }
     }

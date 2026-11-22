@@ -19,16 +19,17 @@ import io.github.freew_w.fischdroid.R
 import io.github.freew_w.fischdroid.config.Config
 
 /**
- * First-run, three-step setup. Writes the values to [Config] and marks setup complete so the
+ * First-run, four-step setup. Writes the values to [Config] and marks setup complete so the
  * wizard is skipped on later launches. It can be reopened from the main screen at any time.
  */
 class SetupWizardActivity : AppCompatActivity() {
 
     companion object {
         private const val STEP_WELCOME = 0
-        private const val STEP_REGION = 1
-        private const val STEP_COLOR = 2
-        private const val STEP_COUNT = 3
+        private const val STEP_CAST = 1
+        private const val STEP_REGION = 2
+        private const val STEP_COLOR = 3
+        private const val STEP_COUNT = 4
 
         private const val KEY_STEP = "step"
         private const val KEY_COLOR = "color"
@@ -37,14 +38,21 @@ class SetupWizardActivity : AppCompatActivity() {
     private lateinit var progress: LinearProgressIndicator
     private lateinit var stepLabel: TextView
     private lateinit var stepWelcome: View
+    private lateinit var stepCast: View
     private lateinit var stepRegion: View
     private lateinit var stepColor: View
     private lateinit var backButton: MaterialButton
     private lateinit var nextButton: MaterialButton
+    private lateinit var castStatus: TextView
     private lateinit var regionStatus: TextView
     private lateinit var colorStatus: TextView
     private lateinit var colorSwatch: View
     private lateinit var colorHex: TextView
+
+    private lateinit var tilCastX: TextInputLayout
+    private lateinit var tilCastY: TextInputLayout
+    private lateinit var etCastX: EditText
+    private lateinit var etCastY: EditText
 
     private lateinit var tilX: TextInputLayout
     private lateinit var tilY: TextInputLayout
@@ -57,6 +65,21 @@ class SetupWizardActivity : AppCompatActivity() {
 
     private var step = STEP_WELCOME
     private var selectedColor = 0
+
+    private val pickCast = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != RESULT_OK) return@registerForActivityResult
+        val values = SetupActivity.results(result.data) ?: return@registerForActivityResult
+        val point =
+            values.getIntArray(SetupActivity.FIELD_ID_CAST_POINT) ?: return@registerForActivityResult
+        if (point.size != 2) return@registerForActivityResult
+
+        etCastX.setText(formatPixel(point[0]))
+        etCastY.setText(formatPixel(point[1]))
+        clearCastErrors()
+        castStatus.text = getString(R.string.wizard_cast_picked, point[0], point[1])
+    }
 
     private val pickRegion = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -103,14 +126,21 @@ class SetupWizardActivity : AppCompatActivity() {
         progress = findViewById(R.id.wizard_progress)
         stepLabel = findViewById(R.id.tv_step_label)
         stepWelcome = findViewById(R.id.step_welcome)
+        stepCast = findViewById(R.id.step_cast)
         stepRegion = findViewById(R.id.step_region)
         stepColor = findViewById(R.id.step_color)
         backButton = findViewById(R.id.btn_wizard_back)
         nextButton = findViewById(R.id.btn_wizard_next)
+        castStatus = findViewById(R.id.tv_wizard_cast_status)
         regionStatus = findViewById(R.id.tv_wizard_region_status)
         colorStatus = findViewById(R.id.tv_wizard_color_status)
         colorSwatch = findViewById(R.id.wizard_color_swatch)
         colorHex = findViewById(R.id.tv_wizard_color_hex)
+
+        tilCastX = findViewById(R.id.til_wizard_cast_x)
+        tilCastY = findViewById(R.id.til_wizard_cast_y)
+        etCastX = findViewById(R.id.et_wizard_cast_x)
+        etCastY = findViewById(R.id.et_wizard_cast_y)
 
         tilX = findViewById(R.id.til_wizard_x)
         tilY = findViewById(R.id.til_wizard_y)
@@ -123,6 +153,12 @@ class SetupWizardActivity : AppCompatActivity() {
 
         progress.max = STEP_COUNT
         selectedColor = savedInstanceState?.getInt(KEY_COLOR, Config.fishColor) ?: Config.fishColor
+
+        val castX = formatPixel(Config.castHoldX)
+        val castY = formatPixel(Config.castHoldY)
+        etCastX.setText(castX)
+        etCastY.setText(castY)
+        castStatus.text = getString(R.string.wizard_cast_status, Config.castHoldX, Config.castHoldY)
 
         etX.setText(formatPixel(Config.trackX))
         etY.setText(formatPixel(Config.trackY))
@@ -153,10 +189,28 @@ class SetupWizardActivity : AppCompatActivity() {
         }
         nextButton.setOnClickListener {
             when (step) {
-                STEP_WELCOME -> showStep(STEP_REGION)
+                STEP_WELCOME -> showStep(STEP_CAST)
+                STEP_CAST -> if (validateCast() != null) showStep(STEP_REGION)
                 STEP_REGION -> if (validateRegion() != null) showStep(STEP_COLOR)
                 else -> finishWizard()
             }
+        }
+
+        findViewById<View>(R.id.btn_wizard_pick_cast).setOnClickListener {
+            val cast = readCastOrNull()
+            val point = cast ?: PixelPoint(Config.castHoldX, Config.castHoldY)
+            pickCast.launch(
+                SetupActivity.intent(
+                    this,
+                    listOf(
+                        SetupField.point(
+                            SetupActivity.FIELD_ID_CAST_POINT,
+                            getString(R.string.setup_field_cast),
+                            point,
+                        )
+                    ),
+                )
+            )
         }
 
         findViewById<View>(R.id.btn_wizard_pick_region).setOnClickListener {
@@ -194,6 +248,7 @@ class SetupWizardActivity : AppCompatActivity() {
     private fun showStep(newStep: Int) {
         step = newStep.coerceIn(STEP_WELCOME, STEP_COLOR)
         stepWelcome.isVisible = step == STEP_WELCOME
+        stepCast.isVisible = step == STEP_CAST
         stepRegion.isVisible = step == STEP_REGION
         stepColor.isVisible = step == STEP_COLOR
         progress.setProgressCompat(step + 1, true)
@@ -217,6 +272,32 @@ class SetupWizardActivity : AppCompatActivity() {
         } else {
             getString(R.string.wizard_color_status, selectedColor.toHexColor())
         }
+    }
+
+    private fun readCastOrNull(): PixelPoint? {
+        val x = etCastX.text?.toString()?.trim()?.toIntOrNull()
+        val y = etCastY.text?.toString()?.trim()?.toIntOrNull()
+        if (x == null || y == null) return null
+        if (x < 0 || y < 0) return null
+        return PixelPoint(x, y)
+    }
+
+    private fun validateCast(): PixelPoint? {
+        val message = getString(R.string.wizard_cast_invalid)
+        val x = etCastX.text?.toString()?.trim()?.toIntOrNull()
+        val y = etCastY.text?.toString()?.trim()?.toIntOrNull()
+
+        tilCastX.error = if (x == null || x < 0) message else null
+        tilCastY.error = if (y == null || y < 0) message else null
+
+        if (x == null || y == null) return null
+        if (x < 0 || y < 0) return null
+        return PixelPoint(x, y)
+    }
+
+    private fun clearCastErrors() {
+        tilCastX.error = null
+        tilCastY.error = null
     }
 
     private fun readRegionOrNull(): RegionSelection? {
@@ -256,11 +337,17 @@ class SetupWizardActivity : AppCompatActivity() {
     private fun formatPixel(value: Int): String = String.format(java.util.Locale.US, "%d", value)
 
     private fun finishWizard() {
+        val cast = validateCast() ?: run {
+            showStep(STEP_CAST)
+            return
+        }
         val region = validateRegion() ?: run {
             showStep(STEP_REGION)
             return
         }
 
+        Config.castHoldX = cast.x
+        Config.castHoldY = cast.y
         Config.trackX = region.x
         Config.trackY = region.y
         Config.trackW = region.width

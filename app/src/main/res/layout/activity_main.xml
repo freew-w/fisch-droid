@@ -187,6 +187,115 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Cast point -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_cast"
+                style="@style/Widget.FischDroid.Card"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/card_gap"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/card_automation">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:baselineAligned="false"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <androidx.appcompat.widget.AppCompatImageView
+                            android:layout_width="@dimen/icon_badge"
+                            android:layout_height="@dimen/icon_badge"
+                            android:background="@drawable/bg_icon_circle"
+                            android:backgroundTint="?attr/colorPrimaryContainer"
+                            android:contentDescription="@string/cast_point_icon_desc"
+                            android:padding="10dp"
+                            android:scaleType="fitCenter"
+                            app:srcCompat="@drawable/ic_target"
+                            app:tint="?attr/colorOnPrimaryContainer" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/space_m"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/section_cast_title"
+                                android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                                android:textColor="?attr/colorOnSurface" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/section_cast_body"
+                                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                                android:textColor="?attr/colorOnSurfaceVariant" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_l"
+                        android:baselineAligned="false"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.FischDroid.TextInputLayout"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:hint="@string/cast_hold_x_label">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/et_cast_hold_x"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:imeOptions="actionNext"
+                                android:inputType="numberDecimal"
+                                android:maxLines="1" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.FischDroid.TextInputLayout"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/space_m"
+                            android:layout_weight="1"
+                            android:hint="@string/cast_hold_y_label">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/et_cast_hold_y"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:imeOptions="actionDone"
+                                android:inputType="numberDecimal"
+                                android:maxLines="1" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_pick_cast_point"
+                        style="@style/Widget.Material3.Button.OutlinedButton.Icon"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_l"
+                        android:text="@string/pick_cast_point"
+                        app:icon="@drawable/ic_photo" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Track region -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/card_track"
@@ -196,7 +305,7 @@
                 android:layout_marginTop="@dimen/card_gap"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/card_automation">
+                app:layout_constraintTop_toBottomOf="@id/card_cast">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -563,56 +672,15 @@
                         </com.google.android.material.textfield.TextInputLayout>
                     </LinearLayout>
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_m"
-                        android:baselineAligned="false"
-                        android:orientation="horizontal">
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.FischDroid.TextInputLayout"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:hint="@string/switch_band_label">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_switch_band"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:imeOptions="actionNext"
-                                android:inputType="numberDecimal"
-                                android:maxLines="1" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.FischDroid.TextInputLayout"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="@dimen/space_m"
-                            android:layout_weight="1"
-                            android:hint="@string/cast_hold_x_label">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_cast_hold_x"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:imeOptions="actionNext"
-                                android:inputType="numberDecimal"
-                                android:maxLines="1" />
-                        </com.google.android.material.textfield.TextInputLayout>
-                    </LinearLayout>
-
                     <com.google.android.material.textfield.TextInputLayout
                         style="@style/Widget.FischDroid.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/space_m"
-                        android:hint="@string/cast_hold_y_label">
+                        android:hint="@string/switch_band_label">
 
                         <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/et_cast_hold_y"
+                            android:id="@+id/et_switch_band"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:imeOptions="actionDone"

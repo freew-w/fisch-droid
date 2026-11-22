@@ -67,13 +67,13 @@ object Config {
         get() = prefs.getFloat(KEY_SWITCH_BAND, 200f)
         set(value) = prefs.edit { putFloat(KEY_SWITCH_BAND, value) }
 
-    var castHoldX: Float
-        get() = prefs.getFloat(KEY_CAST_HOLD_X, 1100f)
-        set(value) = prefs.edit { putFloat(KEY_CAST_HOLD_X, value) }
+    var castHoldX: Int
+        get() = prefs.getInt(KEY_CAST_HOLD_X, 1100)
+        set(value) = prefs.edit { putInt(KEY_CAST_HOLD_X, value) }
 
-    var castHoldY: Float
-        get() = prefs.getFloat(KEY_CAST_HOLD_Y, 600f)
-        set(value) = prefs.edit { putFloat(KEY_CAST_HOLD_Y, value) }
+    var castHoldY: Int
+        get() = prefs.getInt(KEY_CAST_HOLD_Y, 600)
+        set(value) = prefs.edit { putInt(KEY_CAST_HOLD_Y, value) }
 
     var fishColor: Int
         get() = prefs.getInt(KEY_FISH_COLOR, Color.rgb(67, 75, 91))

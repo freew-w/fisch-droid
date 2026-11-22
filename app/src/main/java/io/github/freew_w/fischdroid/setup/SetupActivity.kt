@@ -40,6 +40,7 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
 
         const val FIELD_ID_REGION = "track_region"
         const val FIELD_ID_FISH_COLOR = "fish_line_color"
+        const val FIELD_ID_CAST_POINT = "cast_point"
 
         private const val KEY_FIELD_INDEX = "field_index"
         private const val KEY_REGION_FIRST = "region_first"

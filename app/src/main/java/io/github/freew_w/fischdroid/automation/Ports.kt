@@ -13,9 +13,9 @@ import io.github.freew_w.fischdroid.detection.ShakeButton
 
 /** The only way the pipeline can inject touches. Implemented by `TapService`. */
 interface GestureSink {
-    fun press(x: Float, y: Float, durationMs: Long)
+    fun press(x: Int, y: Int, durationMs: Long)
 
-    fun setHolding(hold: Boolean, x: Float, y: Float)
+    fun setHolding(hold: Boolean, x: Int, y: Int)
 }
 
 /** The pipeline's view of the debug overlay. Implementations decide which thread to draw on. */

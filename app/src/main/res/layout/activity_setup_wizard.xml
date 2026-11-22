@@ -26,7 +26,7 @@
         android:layout_marginStart="@dimen/screen_padding"
         android:layout_marginTop="@dimen/space_xs"
         android:layout_marginEnd="@dimen/screen_padding"
-        android:max="3"
+        android:max="4"
         app:indicatorColor="?attr/colorPrimary"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -47,7 +47,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/wizard_progress"
-        tools:text="Step 1 of 3" />
+        tools:text="Step 1 of 4" />
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/wizard_scroll"
@@ -127,6 +127,31 @@
                             android:layout_width="22dp"
                             android:layout_height="22dp"
                             android:contentDescription="@null"
+                            app:srcCompat="@drawable/ic_target"
+                            app:tint="?attr/colorPrimary" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/space_m"
+                            android:layout_weight="1"
+                            android:text="@string/wizard_bullet_cast"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                            android:textColor="?attr/colorOnSurface" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_m"
+                        android:baselineAligned="false"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <androidx.appcompat.widget.AppCompatImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:contentDescription="@null"
                             app:srcCompat="@drawable/ic_fish"
                             app:tint="?attr/colorPrimary" />
 
@@ -192,7 +217,96 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Step 2: track region -->
+            <!-- Step 2: cast point -->
+            <LinearLayout
+                android:id="@+id/step_cast"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/wizard_cast_title"
+                    android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
+                    android:textColor="?attr/colorOnSurface" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_s"
+                    android:text="@string/wizard_cast_body"
+                    android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_xl"
+                    android:baselineAligned="false"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_wizard_cast_x"
+                        style="@style/Widget.FischDroid.TextInputLayout"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="@string/cast_hold_x_label">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/et_wizard_cast_x"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:imeOptions="actionNext"
+                            android:inputType="numberDecimal"
+                            android:maxLines="1" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <Space
+                        android:layout_width="@dimen/space_m"
+                        android:layout_height="1dp" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_wizard_cast_y"
+                        style="@style/Widget.FischDroid.TextInputLayout"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="@string/cast_hold_y_label">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/et_wizard_cast_y"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:imeOptions="actionDone"
+                            android:inputType="numberDecimal"
+                            android:maxLines="1" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_wizard_pick_cast"
+                    style="@style/Widget.Material3.Button.OutlinedButton.Icon"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_xl"
+                    android:text="@string/wizard_pick_cast"
+                    app:icon="@drawable/ic_target" />
+
+                <TextView
+                    android:id="@+id/tv_wizard_cast_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_m"
+                    android:freezesText="true"
+                    android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                    android:textColor="?attr/colorPrimary"
+                    tools:text="Cast point picked: 1100, 600" />
+            </LinearLayout>
+
+            <!-- Step 3: track region -->
             <LinearLayout
                 android:id="@+id/step_region"
                 android:layout_width="match_parent"
@@ -327,7 +441,7 @@
                     tools:text="Region picked: 564, 842 · 764 × 31" />
             </LinearLayout>
 
-            <!-- Step 3: fish line color -->
+            <!-- Step 4: fish line color -->
             <LinearLayout
                 android:id="@+id/step_color"
                 android:layout_width="match_parent"

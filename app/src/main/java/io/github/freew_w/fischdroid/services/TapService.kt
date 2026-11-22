@@ -107,12 +107,12 @@ class TapService : AccessibilityService(), GestureSink {
         return super.onUnbind(intent)
     }
 
-    override fun press(x: Float, y: Float, durationMs: Long) {
+    override fun press(x: Int, y: Int, durationMs: Long) {
         mainHandler.post {
             // The tap is a new gesture, so any tracked hold is no longer valid.
             resetHold()
 
-            val tapPath = Path().apply { moveTo(x, y) }
+            val tapPath = Path().apply { moveTo(x.toFloat(), y.toFloat()) }
             val tapStroke = GestureDescription.StrokeDescription(tapPath, 0L, durationMs)
             val tapGesture = GestureDescription.Builder().addStroke(tapStroke).build()
 
@@ -130,8 +130,8 @@ class TapService : AccessibilityService(), GestureSink {
         }
     }
 
-    override fun setHolding(hold: Boolean, x: Float, y: Float) {
-        mainHandler.post { updateHolding(hold, x, y) }
+    override fun setHolding(hold: Boolean, x: Int, y: Int) {
+        mainHandler.post { updateHolding(hold, x.toFloat(), y.toFloat()) }
     }
 
     private fun updateHolding(hold: Boolean, x: Float, y: Float) {

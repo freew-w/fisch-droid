@@ -148,8 +148,8 @@ class FishingPipeline(
             if (nowMs - lastShakeTapMs >= SHAKE_TAP_INTERVAL_MS) {
                 lastShakeTapMs = nowMs
                 gestures.press(
-                    button.centerX.toFloat(),
-                    button.centerY.toFloat(),
+                    button.centerX,
+                    button.centerY,
                     SHAKE_TAP_DURATION_MS,
                 )
             }
@@ -207,6 +207,6 @@ class FishingPipeline(
             hud.clear()
         }
         // A released hold needs no coordinates, but keeping one argument path avoids a second API.
-        gestures.setHolding(false, 0f, 0f)
+        gestures.setHolding(false, 0, 0)
     }
 }
