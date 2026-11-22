@@ -202,12 +202,10 @@ class SetupWizardActivity : AppCompatActivity() {
             pickCast.launch(
                 SetupActivity.intent(
                     this,
-                    listOf(
-                        SetupField.point(
-                            SetupActivity.FIELD_ID_CAST_POINT,
-                            getString(R.string.setup_field_cast),
-                            point,
-                        )
+                    SetupField.point(
+                        SetupActivity.FIELD_ID_CAST_POINT,
+                        getString(R.string.setup_field_cast),
+                        point,
                     ),
                 )
             )
@@ -217,12 +215,10 @@ class SetupWizardActivity : AppCompatActivity() {
             pickRegion.launch(
                 SetupActivity.intent(
                     this,
-                    listOf(
-                        SetupField.region(
-                            SetupActivity.FIELD_ID_REGION,
-                            getString(R.string.setup_field_region),
-                            readRegionOrNull(),
-                        )
+                    SetupField.region(
+                        SetupActivity.FIELD_ID_REGION,
+                        getString(R.string.setup_field_region),
+                        readRegionOrNull(),
                     ),
                 )
             )
@@ -231,12 +227,10 @@ class SetupWizardActivity : AppCompatActivity() {
             pickColor.launch(
                 SetupActivity.intent(
                     this,
-                    listOf(
-                        SetupField.color(
-                            SetupActivity.FIELD_ID_FISH_COLOR,
-                            getString(R.string.setup_field_color),
-                            selectedColor,
-                        )
+                    SetupField.color(
+                        SetupActivity.FIELD_ID_FISH_COLOR,
+                        getString(R.string.setup_field_color),
+                        selectedColor,
                     ),
                 )
             )

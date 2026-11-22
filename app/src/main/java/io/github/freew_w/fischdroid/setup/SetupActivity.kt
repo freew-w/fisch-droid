@@ -34,7 +34,7 @@ import io.github.freew_w.fischdroid.config.Config
 class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListener {
 
     companion object {
-        const val EXTRA_FIELDS = "io.github.freew_w.fischdroid.setup.FIELDS"
+        const val EXTRA_FIELD = "io.github.freew_w.fischdroid.setup.FIELD"
         const val EXTRA_IMAGE_URI = "io.github.freew_w.fischdroid.setup.IMAGE_URI"
         const val EXTRA_RESULTS = "io.github.freew_w.fischdroid.setup.RESULTS"
 
@@ -42,16 +42,15 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
         const val FIELD_ID_FISH_COLOR = "fish_line_color"
         const val FIELD_ID_CAST_POINT = "cast_point"
 
-        private const val KEY_FIELD_INDEX = "field_index"
         private const val KEY_REGION_FIRST = "region_first"
         private const val KEY_RESULTS = "results"
         private const val KEY_CURSOR_X = "cursor_x"
         private const val KEY_CURSOR_Y = "cursor_y"
         private const val KEY_IMAGE_URI = "image_uri"
 
-        fun intent(context: Context, fields: List<SetupField>, imageUri: Uri? = null): Intent {
+        fun intent(context: Context, field: SetupField, imageUri: Uri? = null): Intent {
             return Intent(context, SetupActivity::class.java)
-                .putExtra(EXTRA_FIELDS, ArrayList(fields))
+                .putExtra(EXTRA_FIELD, field)
                 .apply {
                     if (imageUri != null) putExtra(EXTRA_IMAGE_URI, imageUri.toString())
                 }
@@ -72,11 +71,10 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
     private lateinit var cursorSwatch: View
     private lateinit var emptyState: View
 
-    private var fields: List<SetupField> = emptyList()
+    private var field: SetupField? = null
     private var totalSteps = 1
-    private var fieldIndex = 0
+    private var result: Any? = null
     private var regionFirst: PixelPoint? = null
-    private val results = HashMap<String, Any>()
 
     private var imageLoaded = false
     private var imageUri: Uri? = null
@@ -100,12 +98,13 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
             insets
         }
 
-        fields = readFields(intent)
-        if (fields.isEmpty()) {
+        field = readField(intent)
+        val active = field
+        if (active == null) {
             finish()
             return
         }
-        totalSteps = fields.sumOf { if (it.type == SetupFieldType.REGION) 2 else 1 }
+        totalSteps = if (active.type == SetupFieldType.REGION) 2 else 1
 
         picker = findViewById(R.id.pixel_picker)
         confirmButton = findViewById(R.id.btn_setup_confirm)
@@ -149,7 +148,7 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
         findViewById<View>(R.id.btn_nudge_right).setOnClickListener { nudge(1, 0) }
 
         confirmButton.setOnClickListener {
-            if (fieldIndex >= fields.size) saveAndFinish() else confirm()
+            if (isDone()) saveAndFinish() else confirm()
         }
 
         if (savedInstanceState != null) {
@@ -186,18 +185,18 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
             return
         }
 
-        val field = fields[fieldIndex]
+        val active = field ?: return
         val point = picker.cursor
 
-        when (field.type) {
+        when (active.type) {
             SetupFieldType.COLOR -> {
                 val color = picker.colorAtCursor()
-                results[field.id] = color
+                result = color
                 showFeedback(getString(R.string.setup_color_saved, color.toHexColor()))
             }
 
             SetupFieldType.POINT -> {
-                results[field.id] = point.toIntArray()
+                result = point.toIntArray()
                 showFeedback(getString(R.string.setup_point_saved))
             }
 
@@ -209,27 +208,25 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
                     updateUi()
                     return
                 }
-                val region = RegionSelection.between(first, point)
-                results[field.id] = region.toIntArray()
+                result = RegionSelection.between(first, point).toIntArray()
                 regionFirst = null
                 showFeedback(getString(R.string.setup_region_saved))
             }
         }
 
-        fieldIndex++
         focusActiveFieldCursor()
         updateUi()
     }
 
     private fun saveAndFinish() {
-        if (results.size < fields.size) return
+        if (field == null || !isDone()) return
         setResult(RESULT_OK, Intent().putExtra(EXTRA_RESULTS, resultsBundle()))
         finish()
     }
 
     private fun updateUi() {
-        val done = fieldIndex >= fields.size
-        if (done) {
+        val active = field ?: return
+        if (isDone()) {
             fieldLabel.text = getString(R.string.setup_all_set)
             fieldValue.text = getString(R.string.setup_ready_to_save)
             fieldHint.text = getString(R.string.setup_hint_done)
@@ -239,30 +236,29 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
             return
         }
 
-        val field = fields[fieldIndex]
-        val regionStep = field.type == SetupFieldType.REGION && regionFirst != null
+        val regionStep = active.type == SetupFieldType.REGION && regionFirst != null
         val stepText = when {
-            field.type == SetupFieldType.REGION && regionStep ->
+            active.type == SetupFieldType.REGION && regionStep ->
                 getString(R.string.setup_region_bottom_right_step)
 
-            field.type == SetupFieldType.REGION ->
+            active.type == SetupFieldType.REGION ->
                 getString(R.string.setup_region_top_left_step)
 
-            field.type == SetupFieldType.COLOR ->
+            active.type == SetupFieldType.COLOR ->
                 getString(R.string.setup_color_step)
 
             else -> getString(R.string.setup_point_step)
         }
 
-        fieldLabel.text = getString(R.string.setup_field_label, field.label, stepText)
+        fieldLabel.text = getString(R.string.setup_field_label, active.label, stepText)
         fieldValue.text = when {
             regionStep -> regionFirst?.let {
                 getString(R.string.setup_value_top_left, it.x, it.y)
             } ?: getString(R.string.setup_value_unset)
 
-            else -> valueLabel(field)
+            else -> valueLabel(active)
         }
-        fieldHint.text = when (field.type) {
+        fieldHint.text = when (active.type) {
             SetupFieldType.REGION -> if (regionStep) {
                 getString(R.string.setup_hint_region_second)
             } else {
@@ -276,7 +272,7 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
         fieldProgress.setProgressCompat(completedSteps(), true)
 
         confirmButton.setText(
-            when (field.type) {
+            when (active.type) {
                 SetupFieldType.REGION -> if (regionStep) {
                     R.string.setup_confirm_bottom_right
                 } else {
@@ -290,22 +286,15 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
         confirmButton.isEnabled = imageLoaded
     }
 
+    private fun isDone(): Boolean = result != null
+
     private fun completedSteps(): Int {
-        var count = 0
-        for (index in 0 until minOf(fieldIndex, fields.size)) {
-            count += if (fields[index].type == SetupFieldType.REGION) 2 else 1
-        }
-        if (fieldIndex < fields.size &&
-            fields[fieldIndex].type == SetupFieldType.REGION &&
-            regionFirst != null
-        ) {
-            count += 1
-        }
-        return count
+        if (isDone()) return totalSteps
+        return if (field?.type == SetupFieldType.REGION && regionFirst != null) 1 else 0
     }
 
     private fun valueLabel(field: SetupField): String {
-        val saved = results[field.id]
+        val saved = result
         if (saved != null) return formatValue(field.type, saved)
 
         return when (field.type) {
@@ -349,18 +338,17 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
     }
 
     private fun focusActiveFieldCursor() {
-        if (!imageLoaded) return
-        val field = fields.getOrNull(fieldIndex) ?: return
-        if (results.containsKey(field.id)) return
+        if (!imageLoaded || isDone()) return
+        val active = field ?: return
 
-        val point = when (field.type) {
+        val point = when (active.type) {
             SetupFieldType.REGION -> if (regionFirst == null) {
-                field.initialRegion?.let { PixelPoint(it.x, it.y) }
+                active.initialRegion?.let { PixelPoint(it.x, it.y) }
             } else {
                 null
             }
 
-            SetupFieldType.POINT -> field.initialPoint
+            SetupFieldType.POINT -> active.initialPoint
             SetupFieldType.COLOR -> null
         }
         point?.let { picker.setCursor(it.x, it.y) }
@@ -371,10 +359,11 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
             restoredCursor = null
             return it
         }
-        val field = fields.getOrNull(fieldIndex) ?: return null
-        return when (field.type) {
-            SetupFieldType.REGION -> field.initialRegion?.let { PixelPoint(it.x, it.y) }
-            SetupFieldType.POINT -> field.initialPoint
+        if (isDone()) return null
+        val active = field ?: return null
+        return when (active.type) {
+            SetupFieldType.REGION -> active.initialRegion?.let { PixelPoint(it.x, it.y) }
+            SetupFieldType.POINT -> active.initialPoint
             SetupFieldType.COLOR -> null
         }
     }
@@ -416,33 +405,29 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
 
     private fun resultsBundle(): Bundle {
         val bundle = Bundle()
-        for (field in fields) {
-            when (val value = results[field.id]) {
-                is Int -> bundle.putInt(field.id, value)
-                is IntArray -> bundle.putIntArray(field.id, value)
-            }
+        val id = field?.id ?: return bundle
+        when (val value = result) {
+            is Int -> bundle.putInt(id, value)
+            is IntArray -> bundle.putIntArray(id, value)
         }
         return bundle
     }
 
     private fun restoreState(state: Bundle) {
-        fieldIndex = state.getInt(KEY_FIELD_INDEX, 0)
-            .coerceIn(0, fields.size)
         regionFirst = state.getIntArray(KEY_REGION_FIRST)?.takeIf { it.size == 2 }?.let {
             PixelPoint(it[0], it[1])
         }
         state.getBundle(KEY_RESULTS)?.let { saved ->
-            for (field in fields) {
-                when (field.type) {
-                    SetupFieldType.COLOR -> {
-                        if (saved.containsKey(field.id)) {
-                            results[field.id] = saved.getInt(field.id)
-                        }
+            val active = field ?: return@let
+            when (active.type) {
+                SetupFieldType.COLOR -> {
+                    if (saved.containsKey(active.id)) {
+                        result = saved.getInt(active.id)
                     }
+                }
 
-                    SetupFieldType.REGION, SetupFieldType.POINT -> {
-                        saved.getIntArray(field.id)?.let { results[field.id] = it }
-                    }
+                SetupFieldType.REGION, SetupFieldType.POINT -> {
+                    saved.getIntArray(active.id)?.let { result = it }
                 }
             }
         }
@@ -453,7 +438,6 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putInt(KEY_FIELD_INDEX, fieldIndex)
         regionFirst?.let { outState.putIntArray(KEY_REGION_FIRST, it.toIntArray()) }
         outState.putBundle(KEY_RESULTS, resultsBundle())
         if (picker.hasImage) {
@@ -464,8 +448,6 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
     }
 
     @Suppress("DEPRECATION")
-    private fun readFields(intent: Intent?): List<SetupField> {
-        val raw = intent?.getSerializableExtra(EXTRA_FIELDS) as? ArrayList<*> ?: return emptyList()
-        return raw.filterIsInstance<SetupField>()
-    }
+    private fun readField(intent: Intent?): SetupField? =
+        intent?.getSerializableExtra(EXTRA_FIELD) as? SetupField
 }

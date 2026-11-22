@@ -44,9 +44,9 @@
     <string name="section_rod_title">Rod control</string>
     <string name="section_rod_body">Fine-tune the catch minigame controller</string>
     <string name="config_autosave_hint">Changes save automatically when you leave a field.</string>
-    <string name="setup_widget">Setup widget</string>
     <string name="setup_wizard">Setup wizard</string>
     <string name="setup_wizard_title">Setup</string>
+    <string name="github">GitHub</string>
     <string name="color_swatch_desc">Selected fish line color</string>
     <string name="fish_line_icon_desc">Fish line</string>
     <string name="rod_icon_desc">Fishing rod</string>

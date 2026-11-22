@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.media.projection.MediaProjectionManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -91,8 +92,13 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<MaterialToolbar>(R.id.toolbar).setOnMenuItemClickListener { item ->
             when (item.itemId) {
-                R.id.action_setup_widget -> {
-                    openSetupWidget()
+                R.id.action_github -> {
+                    startActivity(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://github.com/freew-w/fisch-droid"),
+                        )
+                    )
                     true
                 }
 
@@ -222,12 +228,10 @@ class MainActivity : AppCompatActivity() {
         setupLauncher.launch(
             SetupActivity.intent(
                 this,
-                listOf(
-                    SetupField.region(
-                        SetupActivity.FIELD_ID_REGION,
-                        getString(R.string.setup_field_region),
-                        initial,
-                    )
+                SetupField.region(
+                    SetupActivity.FIELD_ID_REGION,
+                    getString(R.string.setup_field_region),
+                    initial,
                 ),
             )
         )
@@ -237,12 +241,10 @@ class MainActivity : AppCompatActivity() {
         setupLauncher.launch(
             SetupActivity.intent(
                 this,
-                listOf(
-                    SetupField.color(
-                        SetupActivity.FIELD_ID_FISH_COLOR,
-                        getString(R.string.setup_field_color),
-                        Config.fishColor,
-                    )
+                SetupField.color(
+                    SetupActivity.FIELD_ID_FISH_COLOR,
+                    getString(R.string.setup_field_color),
+                    Config.fishColor,
                 ),
             )
         )
@@ -252,33 +254,10 @@ class MainActivity : AppCompatActivity() {
         setupLauncher.launch(
             SetupActivity.intent(
                 this,
-                listOf(
-                    SetupField.point(
-                        SetupActivity.FIELD_ID_CAST_POINT,
-                        getString(R.string.setup_field_cast),
-                        PixelPoint(Config.castHoldX, Config.castHoldY),
-                    )
-                ),
-            )
-        )
-    }
-
-    private fun openSetupWidget() {
-        val region = RegionSelection(Config.trackX, Config.trackY, Config.trackW, Config.trackH)
-        setupLauncher.launch(
-            SetupActivity.intent(
-                this,
-                listOf(
-                    SetupField.region(
-                        SetupActivity.FIELD_ID_REGION,
-                        getString(R.string.setup_field_region),
-                        region,
-                    ),
-                    SetupField.color(
-                        SetupActivity.FIELD_ID_FISH_COLOR,
-                        getString(R.string.setup_field_color),
-                        Config.fishColor,
-                    ),
+                SetupField.point(
+                    SetupActivity.FIELD_ID_CAST_POINT,
+                    getString(R.string.setup_field_cast),
+                    PixelPoint(Config.castHoldX, Config.castHoldY),
                 ),
             )
         )
