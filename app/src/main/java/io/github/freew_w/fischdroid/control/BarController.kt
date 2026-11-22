@@ -1,7 +1,7 @@
-package io.github.freew_w.fischdroid.minigame
+package io.github.freew_w.fischdroid.control
 
-import io.github.freew_w.fischdroid.minigame.Detector.Bar
-import io.github.freew_w.fischdroid.minigame.Detector.Fish
+import io.github.freew_w.fischdroid.detection.Bar
+import io.github.freew_w.fischdroid.detection.Fish
 
 /**
  * Continuous PD controller for a plant where holding accelerates the bar right and releasing
@@ -13,9 +13,12 @@ import io.github.freew_w.fischdroid.minigame.Detector.Fish
  * chattering when the bar sits on the line. Positions come straight from the detector and
  * velocities are raw differences between consecutive detections; there is no motion model or
  * prediction.
+ *
+ * The controller is stateful. Create one per automation session and call [reset] when the session
+ * stops or the game leaves the minigame.
  */
-object ControlLoop {
-    private class State(
+class BarController {
+    private data class State(
         var lastSampleMs: Long,
         var barX: Float,
         var barV: Float,
@@ -26,7 +29,9 @@ object ControlLoop {
     )
 
     /** Ignore the first few samples while the raw velocities settle. */
-    private const val MIN_SAMPLES = 3
+    private companion object {
+        const val MIN_SAMPLES = 3
+    }
 
     private var state: State? = null
 
@@ -35,7 +40,7 @@ object ControlLoop {
     }
 
     /** Returns true to hold, false to release, or null while there are not enough samples. */
-    fun decide(fish: Fish, bar: Bar, nowMs: Long, spec: Detector.ScanSpec): Boolean? {
+    fun decide(fish: Fish, bar: Bar, nowMs: Long, tuning: ControlTuning): Boolean? {
         val s = state
         if (s == null) {
             state = State(nowMs, bar.center.toFloat(), 0f, fish.x.toFloat(), 0f, false, 1)
@@ -59,12 +64,12 @@ object ControlLoop {
 
         val error = s.fishX - s.barX
         val relativeVelocity = s.barV - s.fishV
-        val control = spec.positionGain * error - spec.velocityGain * relativeVelocity
+        val control = tuning.positionGain * error - tuning.velocityGain * relativeVelocity
 
         s.holding = if (s.holding) {
-            control > -spec.switchBand
+            control > -tuning.switchBand
         } else {
-            control > spec.switchBand
+            control > tuning.switchBand
         }
         return s.holding
     }

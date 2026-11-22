@@ -4,9 +4,8 @@ import android.app.Application
 import io.github.freew_w.fischdroid.config.Config
 
 /*
-Config init here
-No init needed for Controller, but ControlLoop and Detector has to be reset in Controller when staled
-Overlays init in TapService
+Config is initialized here. The automation pipeline owns its detector/controller state and resets
+it on start/stop and on minigame transitions; overlays are created by TapService.
  */
 class FischDroidApp : Application() {
     override fun onCreate() {

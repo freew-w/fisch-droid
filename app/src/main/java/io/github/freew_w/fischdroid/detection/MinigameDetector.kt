@@ -1,4 +1,4 @@
-package io.github.freew_w.fischdroid.minigame
+package io.github.freew_w.fischdroid.detection
 
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -9,38 +9,19 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
-object Detector {
-    data class Fish(val x: Int)
-    data class Bar(val x1: Int, val x2: Int) {
-        val center = (x1 + x2) / 2
+/**
+ * Finds the fish marker and the control bar inside the calibrated [TrackGeometry].
+ *
+ * The detector is stateful: the previous fish/bar positions narrow the next scan range and break
+ * ties between candidate bars. Keep one instance per capture session and call [reset] whenever
+ * automation stops or the game leaves the minigame.
+ */
+class MinigameDetector : FishBarAnalyzer {
+    private companion object {
+        const val WIDTH_TOLERANCE = 4
+        const val NEXT_FISH_SCAN_RANGE_OFFSET = 20
+        const val FISH_COLOR_TOLERANCE = 5
     }
-
-    data class ScanSpec(
-        val trackX: Int,
-        val trackY: Int,
-        val trackW: Int,
-        val trackH: Int,
-        val control: Float,
-        val positionGain: Float,
-        val velocityGain: Float,
-        val switchBand: Float,
-        val castHoldX: Float,
-        val castHoldY: Float,
-        val fishColor: Int,
-    ) {
-        val x1Iter = trackX - 5 // Inclusive
-        val x2Iter = trackX + trackW - 1 + 5 // Inclusive
-        val scanYs = listOf(
-            trackY + 2, trackY + 4, trackY + trackH / 2, trackY + trackH - 4, trackY + trackH - 2
-        )
-        val barWidth = (trackW * (0.3f + control) + 1).toInt() // Plus one to round up
-        val nextBarScanRangeOffset = (barWidth * 0.7f).toInt()
-    }
-
-    // Constants
-    private const val WIDTH_TOLERANCE = 4
-    private const val NEXT_FISH_SCAN_RANGE_OFFSET = 20
-    private const val FISH_COLOR_TOLERANCE = 5
 
     // Runtime variables
     private val lab1 = DoubleArray(3)
@@ -67,7 +48,7 @@ object Detector {
         return sqrt(deltaL * deltaL + deltaA * deltaA + deltaB * deltaB)
     }
 
-    private fun findPossibleBarsFromEdges(edges: List<Int>, spec: ScanSpec): List<Bar> {
+    private fun findPossibleBarsFromEdges(edges: List<Int>, spec: DetectionSpec): List<Bar> {
         val bars = mutableListOf<Bar>()
         for (i in 0 until edges.size - 1) {
             for (j in i + 1 until edges.size) {
@@ -82,7 +63,7 @@ object Detector {
 
     private fun findFishAndBar(
         bitmap: Bitmap,
-        spec: ScanSpec,
+        spec: DetectionSpec,
         lastBar: Bar?,
         fishScanX1: Int,
         fishScanX2: Int,
@@ -171,7 +152,7 @@ object Detector {
     Take median from history
     Return the fish and bar
      */
-    fun detect(bitmap: Bitmap, spec: ScanSpec): Pair<Fish?, Bar?> {
+    override fun detect(bitmap: Bitmap, spec: DetectionSpec): Pair<Fish?, Bar?> {
         val fishScanX1 =
             lastFish?.let { max(it.x - NEXT_FISH_SCAN_RANGE_OFFSET, spec.x1Iter) } ?: spec.x1Iter
         val fishScanX2 =
@@ -198,9 +179,7 @@ object Detector {
         return fish to bar
     }
 
-    fun notInMinigame(bitmap: Bitmap): Boolean = CoinsDetector.isVisible(bitmap)
-
-    fun reset() {
+    override fun reset() {
         lastFish = null
         lastBar = null
     }

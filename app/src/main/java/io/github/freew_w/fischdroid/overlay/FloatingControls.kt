@@ -9,21 +9,26 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.TextView
-import io.github.freew_w.fischdroid.Orchestrator
 import io.github.freew_w.fischdroid.R
 import kotlin.math.abs
 
-class FloatingOverlay(service: AccessibilityService) {
+/**
+ * Draggable start/stop bubble shown over the game.
+ *
+ * The bubble is a plain UI control: it asks the supplied callbacks whether automation is running
+ * and toggles it, so it has no compile-time dependency on the pipeline or any global.
+ */
+class FloatingControls(
+    service: AccessibilityService,
+    private val isRunning: () -> Boolean,
+    private val onToggle: () -> Unit,
+) {
     private val windowManager =
         service.getSystemService(AccessibilityService.WINDOW_SERVICE) as WindowManager
     private val buttonParams = createParams()
-
-    //    private val menuParams   = createParams()
     private val floatingButtonView: View =
         LayoutInflater.from(service).inflate(R.layout.floating_button, null)
-
-    //    private val floatingMenuView: View =
-//        LayoutInflater.from(service).inflate(R.layout.floating_menu, null)
+    private val toggleLabel: TextView = floatingButtonView.findViewById(R.id.btnToggle)
     private val touchSlop = ViewConfiguration.get(service).scaledTouchSlop
 
     private var initialX = 0
@@ -31,8 +36,7 @@ class FloatingOverlay(service: AccessibilityService) {
     private var initialTouchX = 0f
     private var initialTouchY = 0f
     private var isDragging = false
-
-//    private var isMenuOpen = false
+    private var attached = false
 
     private fun createParams() = WindowManager.LayoutParams(
         WindowManager.LayoutParams.WRAP_CONTENT,
@@ -81,15 +85,28 @@ class FloatingOverlay(service: AccessibilityService) {
 
     init {
         makeNotTouchable(floatingButtonView)
-
         floatingButtonView.setOnTouchListener(dragListener)
         floatingButtonView.setOnClickListener {
-            Orchestrator.started = !Orchestrator.started
-            floatingButtonView.findViewById<TextView>(R.id.btnToggle).text =
-                if (Orchestrator.started) "Stop" else "Start"
+            onToggle()
+            updateLabel()
         }
-        windowManager.addView(floatingButtonView, buttonParams)
+    }
 
+    fun show() {
+        if (attached) return
+        updateLabel()
+        windowManager.addView(floatingButtonView, buttonParams)
+        attached = true
+    }
+
+    fun hide() {
+        if (!attached) return
+        runCatching { windowManager.removeView(floatingButtonView) }
+        attached = false
+    }
+
+    private fun updateLabel() {
+        toggleLabel.text = if (isRunning()) "Stop" else "Start"
     }
 
     private fun makeNotTouchable(view: View) {
@@ -101,25 +118,5 @@ class FloatingOverlay(service: AccessibilityService) {
                 makeNotTouchable(view.getChildAt(i))
             }
         }
-    }
-
-//    private fun toggleMenu() {
-//        if (isMenuOpen) {
-//            windowManager.removeView(floatingMenuView)
-//            floatingButtonView.visibility = View.VISIBLE
-//        } else {
-//            floatingButtonView.visibility = View.GONE
-//
-////            val params = createLayoutParams(isMenu = true)
-//
-//            windowManager.addView(floatingMenuView, menuParams)
-////            menuView.startAnimation(AnimationUtils.loadAnimation(this, R.anim.menu_scale_in))
-//        }
-//        isMenuOpen = !isMenuOpen
-//    }
-
-    fun hide() {
-        runCatching { windowManager.removeView(floatingButtonView) }
-//        runCatching { windowManager.removeView(floatingMenuView) }
     }
 }
