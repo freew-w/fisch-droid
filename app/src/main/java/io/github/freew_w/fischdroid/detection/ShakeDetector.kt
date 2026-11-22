@@ -1,7 +1,6 @@
-package io.github.freew_w.fischdroid.shake
+package io.github.freew_w.fischdroid.detection
 
 import android.graphics.Bitmap
-import io.github.freew_w.fischdroid.shake.Detector.RING_STEPS
 import java.util.Arrays
 import kotlin.math.cos
 import kotlin.math.max
@@ -29,50 +28,45 @@ import kotlin.math.sin
  * Coordinates are full-frame pixels. Callers should only pass landscape frames, which is the
  * orientation the game is played in.
  */
-object Detector {
-    data class Button(
-        val centerX: Int,
-        val centerY: Int,
-        val radius: Int,
-        val score: Double,
-    )
+class ShakeDetector : ShakeAnalyzer {
+    private companion object {
+        /** A channel at or above this value counts as "white". Anti-aliased glyph edges go to ~200. */
+        const val WHITE_LEVEL = 140
 
-    /** A channel at or above this value counts as "white". Anti-aliased glyph edges go to ~200. */
-    private const val WHITE_LEVEL = 140
+        const val MIN_LETTER_HEIGHT = 7
 
-    private const val MIN_LETTER_HEIGHT = 7
+        /** Letters can never be taller than this fraction of the frame; filters background blobs. */
+        const val MAX_LETTER_HEIGHT_FRACTION = 0.14f
 
-    /** Letters can never be taller than this fraction of the frame; filters background blobs. */
-    private const val MAX_LETTER_HEIGHT_FRACTION = 0.14f
+        const val LETTER_MIN_ASPECT = 0.28f
+        const val LETTER_MAX_ASPECT = 1.20f
+        const val LETTER_MIN_FILL = 0.10f
+        const val LETTER_MAX_FILL = 0.55f
 
-    private const val LETTER_MIN_ASPECT = 0.28f
-    private const val LETTER_MAX_ASPECT = 1.20f
-    private const val LETTER_MIN_FILL = 0.10f
-    private const val LETTER_MAX_FILL = 0.55f
+        /** "SHAKE" has exactly five glyphs. */
+        const val WORD_LETTER_COUNT = 5
 
-    /** "SHAKE" has exactly five glyphs. */
-    private const val WORD_LETTER_COUNT = 5
+        /**
+         * Measured word aspect (width / height) across devices is 3.85-4.1. The range is kept
+         * generous so UI scaling has room, but tight enough to reject unrelated five-letter words.
+         */
+        const val WORD_MIN_ASPECT = 3.2f
+        const val WORD_MAX_ASPECT = 4.7f
+        const val WORD_MAX_HEIGHT_SPREAD = 1.25f
+        const val WORD_MIN_VERTICAL_OVERLAP = 0.75f
+        const val WORD_MAX_HEIGHT_RATIO = 1.25f
+        const val WORD_MAX_GAP_FRACTION = 0.5f
 
-    /**
-     * Measured word aspect (width / height) across devices is 3.85-4.1. The range is kept
-     * generous so UI scaling has room, but tight enough to reject unrelated five-letter words.
-     */
-    private const val WORD_MIN_ASPECT = 3.2f
-    private const val WORD_MAX_ASPECT = 4.7f
-    private const val WORD_MAX_HEIGHT_SPREAD = 1.25f
-    private const val WORD_MIN_VERTICAL_OVERLAP = 0.75f
-    private const val WORD_MAX_HEIGHT_RATIO = 1.25f
-    private const val WORD_MAX_GAP_FRACTION = 0.5f
+        /** The ring radius is ~0.67 x the word width on every measured device. */
+        const val RING_MIN_RADIUS_FRACTION = 0.55f
+        const val RING_MAX_RADIUS_FRACTION = 0.85f
 
-    /** The ring radius is ~0.67 x the word width on every measured device. */
-    private const val RING_MIN_RADIUS_FRACTION = 0.55f
-    private const val RING_MAX_RADIUS_FRACTION = 0.85f
-
-    private const val RING_STEPS = 128
-    private const val RING_BRIGHTNESS_DELTA = 35
-    private const val MIN_RING_COVERAGE = 0.5f
-    private const val MIN_RING_CONTRAST = 50.0
-    private const val MIN_RING_SCORE = 40.0
+        const val RING_STEPS = 128
+        const val RING_BRIGHTNESS_DELTA = 35
+        const val MIN_RING_COVERAGE = 0.5f
+        const val MIN_RING_CONTRAST = 50.0
+        const val MIN_RING_SCORE = 40.0
+    }
 
     private val COS = FloatArray(RING_STEPS) { cos(2.0 * Math.PI * it / RING_STEPS).toFloat() }
     private val SIN = FloatArray(RING_STEPS) { sin(2.0 * Math.PI * it / RING_STEPS).toFloat() }
@@ -86,7 +80,7 @@ object Detector {
      * `width x height` region is analyzed.
      */
     @Synchronized
-    fun find(bitmap: Bitmap, width: Int = bitmap.width, height: Int = bitmap.height): Button? {
+    override fun find(bitmap: Bitmap, width: Int, height: Int): ShakeButton? {
         if (width <= 0 || height <= 0) return null
         val needed = width * height
         if (pixelBuffer.size < needed) pixelBuffer = IntArray(needed)
@@ -97,7 +91,7 @@ object Detector {
     /**
      * Pure-JVM entry point, used by tests. [pixels] is packed ARGB with `width` pixels per row.
      */
-    fun find(pixels: IntArray, width: Int, height: Int): Button? {
+    fun find(pixels: IntArray, width: Int, height: Int): ShakeButton? {
         if (width <= 0 || height <= 0 || pixels.size < width * height) return null
         // The game is played in landscape; portrait frames are not this screen.
         if (height >= width) return null
@@ -118,7 +112,7 @@ object Detector {
             }
         }
 
-        var best: Button? = null
+        var best: ShakeButton? = null
         for (word in groupWords(letters)) {
             if (word.size != WORD_LETTER_COUNT) continue
 
@@ -149,7 +143,7 @@ object Detector {
 
             val bestSoFar = best
             if (bestSoFar == null || ring.score > bestSoFar.score) {
-                best = Button(centerX, centerY, ring.radius, ring.score)
+                best = ShakeButton(centerX, centerY, ring.radius, ring.score)
             }
         }
         return best

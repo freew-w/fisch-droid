@@ -1,19 +1,34 @@
 # AGENTS.md
 
 FischDroid is a single-module Android app (`:app`) that automates a fishing minigame:
-MediaProjection captures frames, `Orchestrator` selects auto-cast/shake/minigame behavior, an
-accessibility overlay draws detections, and `TapService` dispatches gestures. There is no README
-or CI; Gradle and the source are the source of truth.
+MediaProjection captures frames, `FishingPipeline` classifies each frame and runs an explicit
+game-state machine, accessibility overlays draw detections, and `TapService` dispatches gestures.
+There is no README or CI; Gradle and the source are the source of truth.
 
 Package/application ID: `io.github.freew_w.fischdroid`. UI is classic Views/XML, not Compose.
 
-Source layout: the root package holds `FischDroidApp`, `MainActivity`, and `Orchestrator`; `config/`
-holds the persisted `Config`; `services/` holds `ScreenCaptureService`/`TapService`; `minigame/`
-holds `CoinsDetector`/`Detector`/`Controller`/`ControlLoop`; `overlay/` holds
-`DetectionOverlay`/`FloatingOverlay`;
-`shake/` holds `Detector`/`Clicker`; `setup/` holds the first-run wizard, the full-screen pixel
-picker (`SetupActivity`/`PixelPickerView`) and its serializable field models. Both `minigame/` and
-`shake/` define a `Detector`, so refer to them by package.
+## Source layout
+
+The root package holds `FischDroidApp`, `MainActivity`, and `Orchestrator`.
+
+- `automation/` — `FishingPipeline` (per-frame state machine), `GameState`, `FrameObservation`,
+  and the ports in `Ports.kt` (`GestureSink`, `DetectionHudSink`, `Clock`).
+- `detection/` — `MinigameDetector`, `CoinsDetector`, `ShakeDetector`, their interfaces in
+  `Analyzers.kt`, `DetectionSpec`, `TrackGeometry`, and the shared result types in `Detections.kt`
+  (`Fish`, `Bar`, `ShakeButton`).
+- `control/` — `BarController` (PD loop) and `ControlTuning` (gains/switch band).
+- `config/` — `Config` (SharedPreferences), `Settings` (immutable per-frame snapshot composed of
+  `TrackGeometry`, `ControlTuning`, `CastTarget`, and the fish colour), and `CastTarget`.
+- `services/` — `ScreenCaptureService` and `TapService` (implements `GestureSink`, owns
+  `OverlayHost`).
+- `overlay/` — `OverlayHost`, `DetectionHud`, `FloatingControls`.
+- `setup/` — first-run wizard, full-screen pixel picker (`SetupActivity`/`PixelPickerView`), and
+  its serializable field models.
+
+Dependency direction: `automation` depends on `detection`/`control`/`config`; `overlay` implements
+`automation`'s HUD port; `services` is the Android boundary that wires everything together. Keep it
+that way: detectors do not import overlays or services, and the pipeline does not reach for
+`TapService`, `Config`, or a singleton overlay directly.
 
 UI uses a fixed Material 3 (Material Components) theme: sea-blue primary, slate secondary, sand
 tertiary, with dynamic color explicitly disabled in `values*/themes.xml`. Colors live in
@@ -26,7 +41,7 @@ colors.
 - `./gradlew :app:assembleDebug` — debug APK at `app/build/outputs/apk/debug/app-debug.apk`.
 - `./gradlew :app:testDebugUnitTest` — host unit tests.
 - One test class:
-  `./gradlew :app:testDebugUnitTest --tests "io.github.freew_w.fischdroid.ExampleUnitTest"`.
+  `./gradlew :app:testDebugUnitTest --tests "io.github.freew_w.fischdroid.automation.FishingPipelineTest"`.
 - `./gradlew :app:lintDebug` — Android lint.
 - Device tasks: `./gradlew :app:installDebug`, `./gradlew :app:connectedDebugAndroidTest` (needs a
   device/emulator).
@@ -43,57 +58,78 @@ AndroidX, not declared in `app/build.gradle.kts`.
 
 - `MainActivity` opens `SetupWizardActivity` on first launch while `Config.setupComplete` is false.
   After the wizard (or once setup is already complete) it requests `POST_NOTIFICATIONS` on Android
-  13+, then MediaProjection consent on launch; accepting starts `ScreenCaptureService` and
-  automation. Its buttons open accessibility settings, start/stop capture, and launch
-  `SetupActivity` for the track region and fish color.
-- `Orchestrator` is the per-frame pipeline entry point. When `minigame/Detector.notInMinigame`
-  finds the cream "C$" HUD indicator (via `minigame/CoinsDetector`), it taps `(1100, 600)` for 500 ms
-  at most once per second and runs `shake/Clicker`; otherwise it runs `minigame/Controller`.
-- `minigame/CoinsDetector` is calibration-free: it masks the cream `#FFFDE4` fill (+/-12 per
-  channel), scans only the bottom-right ROI (`x, y >= 0.85` of the frame), keeps components 1.8-5.5 %
-  of frame height with glyph aspect 0.30-1.30, then takes the rightmost `C`/`$` pair (combined aspect
+  13+, then MediaProjection consent on launch; accepting starts `ScreenCaptureService`. Its buttons
+  open accessibility settings, start/stop capture, and launch `SetupActivity` for the track region
+  and fish colour.
+- `TapService.onServiceConnected` creates the `OverlayHost`, calls `Orchestrator.attach(this,
+  overlays.hud)`, and starts the overlays. `Orchestrator` is the process-wide composition root: it
+  builds a `FishingPipeline` with the real detectors/controller and `Config::snapshot`, and exposes
+  `processFrame`/`toggle`/`isRunning`. `onUnbind` calls `Orchestrator.detach()` and hides overlays.
+  Before the accessibility service attaches, `Orchestrator.processFrame` is a no-op.
+- `ScreenCaptureService` feeds frames to `Orchestrator.processFrame(bitmap, frameWidth,
+  frameHeight)` from its worker coroutine. The pipeline may run detectors on that worker thread;
+  `DetectionHud` and `TapService` marshal their own work to the main thread.
+- `FishingPipeline` is the only place game-state decisions live. Its states are `IDLE`,
+  `SEARCHING`, `SHAKING`, and `MINIGAME`:
+  - `processFrame` first asks `CoinsDetector.isVisible`. The cream "C$" indicator means the HUD is
+    visible and therefore the game is **not** in the minigame.
+  - Not in the minigame: sample `ShakeDetector` at most every 100 ms. A detected button puts the
+    pipeline in `SHAKING` and taps its centre for 40 ms, at most once per 100 ms. Otherwise it is
+    `SEARCHING` and presses `CastTarget` for 500 ms at most once per second. A shake detection also
+    delays the next cast, preserving the old cadence.
+  - In the minigame: `MinigameDetector` finds the fish/bar and `BarController` returns the hold
+    command; the command goes through `GestureSink.setHolding`.
+  - `IDLE` (stopped or portrait frame) releases the hold and clears the HUD. Leaving the minigame
+    resets the detector, controller, and shake scan cache.
+  - `step(FrameObservation, Settings, nowMs)` is the public, Android-free decision seam. It is what
+    `FishingPipelineTest` drives; `processFrame` only adds detection. Add a new mode by adding a
+    `GameState` and a branch in `step`, not by widening detector types.
+- `Settings`/`Config.snapshot()` is read once per frame, so edits made in the main screen or setup
+  screens apply live (including `fishColor`), without giving the pipeline a `SharedPreferences`
+  dependency. Add a new tunable to `Settings` and `Config.snapshot()`.
+- `CoinsDetector` is calibration-free: it masks the cream `#FFFDE4` fill (+/-12 per channel), scans
+  only the bottom-right ROI (`x, y >= 0.85` of the frame), keeps components 1.8-5.5 % of frame
+  height with glyph aspect 0.30-1.30, then takes the rightmost `C`/`$` pair (combined aspect
   0.85-1.60, height ratio <= 1.45, right edge within 0.8 glyph heights) whose centre is at
-  `x >= 0.93 w`, `y >= 0.88 h`. It needs no per-device configuration; color and ratio tunables are
-  the constants at the top of `CoinsDetector.kt`, and inputs smaller than 320x240 are treated as C$
-  crops. While a full-screen overlay hides "C$", `notInMinigame` reads false (in minigame), which is
-  accepted.
-- `shake/Detector` is calibration-free: it looks for five equal-height white glyphs in a roughly
-  4:1 row inside a bright ring and dark disk, rejecting the jump button's arrow. `shake/Clicker`
-  detects at most every 100 ms and taps the button center for 40 ms while `Orchestrator` routes
-  non-minigame frames. It returns null for portrait frames; the overlay draws a cyan ring.
-- `minigame/Controller` releases the hold and returns on portrait frames, otherwise detects the
-  fish/bar and drives `minigame/ControlLoop`. The loop is a raw PD controller:
-  `u = 4.0 * (fishX - barX) - 3.2 * (barV - fishV)`, holding when `u > 50` or when already holding
-  and `u > -50`, with a 3-sample warm-up and 500 ms reset. There is no bar smoothing or prediction.
-- `TapService.setHolding` holds via one continued accessibility stroke in 20 ms segments, alternating
-  the endpoint by 1 px because a zero-motion continuation produces no event and is reported as
-  cancelled; release sends a final 1 ms segment with `willContinue = false`. A fresh stroke always
-  starts its path on the hold point because the path start is where `ACTION_DOWN` lands.
-  `setHolding`/`press` are called from background coroutines, so requests and all hold state are
-  marshalled to the main thread. `press` remains the finite-tap API used by `MainActivity`,
-  `shake/Clicker`, and `Orchestrator`.
+  `x >= 0.93 w`, `y >= 0.88 h`. Color and ratio tunables are the constants in its companion object;
+  inputs smaller than 320x240 are treated as C$ crops. Pass the real frame width/height (not
+  `bitmap.width`, which may include row-stride padding). While a full-screen overlay hides "C$",
+  the pipeline reads "in minigame", which is accepted.
+- `ShakeDetector` is calibration-free: it looks for five equal-height white glyphs in a roughly
+  4:1 row inside a bright ring and dark disk, rejecting the jump button's arrow. It returns null
+  for portrait frames; the overlay draws a cyan ring. `find(IntArray, width, height)` remains a
+  pure-JVM entry point for tests.
+- `MinigameDetector` is stateful: the previous fish/bar positions narrow the next scan range and
+  break ties between candidate bars. It samples five rows and takes medians. `reset()` is required
+  when stopping or leaving the minigame.
+- `BarController` is a raw PD controller:
+  `u = positionGain * (fishX - barX) - velocityGain * (barV - fishV)`. Defaults are 4.0 and 3.2;
+  it holds when `u > switchBand` (default 200) or when already holding and `u > -switchBand`, with
+  a 3-sample warm-up and `reset()` on session/minigame transitions. There is no bar smoothing,
+  motion model, or prediction.
+- `TapService.setHolding` holds via one continued accessibility stroke in 20 ms segments,
+  alternating the endpoint by 1 px because a zero-motion continuation produces no event and is
+  reported as cancelled; release sends a final 1 ms segment with `willContinue = false`. A fresh
+  stroke always starts its path on the hold point because the path start is where `ACTION_DOWN`
+  lands. `setHolding`/`press` are called from the pipeline's worker thread, so requests and all hold
+  state are marshalled to the main thread. `press` is the finite-tap API used by the pipeline.
 - A continuation must only be dispatched after the previous segment's result callback, never while
   a segment is still in flight. `MotionEventInjector` records the touch point when the system
   processes the gesture; an earlier continuation is rejected and the system then removes the still
   queued `ACTION_DOWN`, so the game receives no touch at all. That made short holds vanish
   completely; see `holdCallback`/`gesture` in `TapService`.
 - Detection and gesture coordinates are calibrated to a specific landscape screen. Track geometry,
-  rod control and the fish line color are persisted by `config/Config.kt` and edited on the main
-  screen or in `setup/SetupActivity`; `FischDroidApp` initializes it at process start, and
-  `Orchestrator` rebuilds `Detector.ScanSpec` each frame so edits apply live (including
-  `Config.fishColor`). Recalibrate the `Config` defaults,
-  `HOLD_X`/`HOLD_Y` in `minigame/Controller.kt`, and the cast taps in `Orchestrator.kt` for another
-  device; the C$ detector itself is calibration-free and should only need its color/ratio
-  constants adjusted. The overlay's Y position is derived from `Config.trackY`/`trackH`. Portrait
-  capture is only partially handled: `notInMinigame` runs before `Controller`'s orientation guard.
-- `setup/SetupActivity` is reusable: it takes a serializable list of `SetupField`s (`REGION` needs
-  two confirms, `POINT` and `COLOR` one) and returns a `Bundle` keyed by field id. Its image comes
-  from the photo picker; `PixelPickerView` maps view coordinates back to image pixels, so taps only
-  move the cursor and zoom/pan never changes the picked pixel. `Config.lastImageUri` remembers the
-  last screenshot. The wizard and main screen consume results through `SetupActivity.results()`.
+  rod control, control gains, cast/hold point, and fish colour are persisted by `config/Config.kt`
+  and edited on the main screen or in `setup/SetupActivity`. Recalibrate the `Config` defaults for
+  another device; the C$ and shake detectors are calibration-free and should only need their
+  constants adjusted. The HUD's Y position is derived from `Config.trackY`/`trackH` minus 150 px.
+- `OverlayHost` owns both overlays and gives them one `show()`/`hide()` lifecycle. `DetectionHud`
+  is a class implementing `DetectionHudSink`; it coalesces identical updates and posts view
+  mutations to the main thread. `FloatingControls` is a class that takes `isRunning`/`onToggle`
+  callbacks, so it has no dependency on the pipeline or `Orchestrator`. Both use
+  `TYPE_ACCESSIBILITY_OVERLAY`; there is no `SYSTEM_ALERT_WINDOW` permission.
 - The accessibility service (`TapService`) must be enabled manually before the overlay or gestures
-  work. `overlay/OverlayManager.kt` uses `TYPE_ACCESSIBILITY_OVERLAY`; there is no
-  `SYSTEM_ALERT_WINDOW` permission.
+  work.
 - Keep R8 keep rules in `app/src/main/keepRules/*.keep` (AGP 9 location), not a
   `proguard-rules.pro`. Release builds enable R8 optimization scoped to `androidx.**`, `kotlin.**`,
   and `kotlinx.**`.
@@ -104,15 +140,15 @@ AndroidX, not declared in `app/build.gradle.kts`.
 
 - `ScreenCaptureService` has no built-in frame dump. Add temporary debug saving when needed and
   remove it before committing.
-- The committed detection fixtures are `app/src/test/resources/shake/` and
-  `app/src/test/resources/coins/` (four full frames, two C$ crops, a jump-button crop). Repo-root
-  `Pictures/` is gitignored and may be absent; it is not runtime output.
-- `ExampleUnitTest`, `ExampleInstrumentedTest`, `setup/RegionSelectionTest` and
-  `minigame/CoinsDetectorTest`/`CoinsDetectorBitmapTest` currently exist; there are no control-loop
-  tests.
-  `shake/Detector.find(IntArray, width, height)` is pure JVM and testable without Android;
-  `CoinsDetector.find(IntArray, width, height)` is likewise pure JVM, while `CoinsDetectorBitmapTest`
-  uses a test-only Robolectric dependency to exercise the `Bitmap`/`notInMinigame` path.
-  `minigame/Detector` otherwise depends on Android `Bitmap`/`ColorUtils`.
-  `RegionSelection.between` is plain Kotlin and unit-tested. Capture, control, overlay, gesture and
+- There are currently no committed detection fixtures under `app/src/test/resources/`. Put new
+  frame fixtures there if needed; repo-root `Pictures/` is gitignored and may be absent, and is
+  not runtime output.
+- Current host tests: `ExampleUnitTest`, `control/BarControllerTest`, and
+  `automation/FishingPipelineTest`; `ExampleInstrumentedTest` is the only instrumented test.
+  `FishingPipelineTest` drives `step()` with fake `FishBarAnalyzer`/`CoinsAnalyzer`/`ShakeAnalyzer`,
+  fake `GestureSink`/`DetectionHudSink`, and a deterministic clock, so no `Bitmap` or device is
+  needed. `BarControllerTest` exercises warm-up, hold/release, and reset.
+- `ShakeDetector.find(IntArray, width, height)` is pure JVM and testable without Android.
+  `MinigameDetector` and `CoinsDetector` take `Bitmap`/`ColorUtils` and need a device or Robolectric
+  for full-frame tests. `RegionSelection.between` is plain Kotlin. Capture, overlay, gesture and
   setup-widget behavior still need device verification.

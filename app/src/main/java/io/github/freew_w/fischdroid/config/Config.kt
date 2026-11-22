@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Color
 import androidx.core.content.edit
+import io.github.freew_w.fischdroid.control.ControlTuning
+import io.github.freew_w.fischdroid.detection.TrackGeometry
 
 object Config {
     private const val PREFS_NAME = "config"
@@ -86,4 +88,16 @@ object Config {
         set(value) = prefs.edit {
             if (value == null) remove(KEY_LAST_IMAGE_URI) else putString(KEY_LAST_IMAGE_URI, value)
         }
+
+    /**
+     * Reads the whole automation configuration at once. The pipeline calls this once per frame so
+     * edits from the setup screens are picked up live, and so tests can build a [Settings] without
+     * touching `SharedPreferences`.
+     */
+    fun snapshot(): Settings = Settings(
+        track = TrackGeometry(trackX, trackY, trackW, trackH, rodControl),
+        control = ControlTuning(positionGain, velocityGain, switchBand),
+        cast = CastTarget(castHoldX, castHoldY),
+        fishColor = fishColor,
+    )
 }

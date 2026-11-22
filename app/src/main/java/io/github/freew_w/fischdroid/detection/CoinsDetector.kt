@@ -1,4 +1,4 @@
-package io.github.freew_w.fischdroid.minigame
+package io.github.freew_w.fischdroid.detection
 
 import android.graphics.Bitmap
 import kotlin.math.abs
@@ -13,52 +13,55 @@ import kotlin.math.min
  * height, so the same detector works on the 1892x1010 and 2400x1080 fixtures. The only
  * color constant is the indicator's solid fill.
  *
- * Known limitation (accepted, same as the old pixel probe): while a full-screen overlay such as
- * settings or the backpack is open, "C$" is hidden and this returns null, i.e. "in minigame".
+ * The pipeline treats "C$ is visible" as "not in the minigame"; a full-screen overlay such as
+ * settings or the backpack hides it, which reads as "in minigame" and is accepted.
  */
-object CoinsDetector {
-    data class Indicator(val left: Int, val top: Int, val right: Int, val bottom: Int)
+class CoinsDetector : CoinsAnalyzer {
+    private data class Indicator(val left: Int, val top: Int, val right: Int, val bottom: Int)
 
-    // Solid fill measured as #FFFDE4 on both fixture families; device color profiles can shift it.
-    private const val FILL_R = 255
-    private const val FILL_G = 253
-    private const val FILL_B = 228
-    private const val COLOR_TOLERANCE = 12
+    private companion object {
+        // Solid fill measured as #FFFDE4 on both fixture families; device color profiles can
+        // shift it.
+        const val FILL_R = 255
+        const val FILL_G = 253
+        const val FILL_B = 228
+        const val COLOR_TOLERANCE = 12
 
-    // Measured C$ bounds: x 0.973-0.992w, y 0.902-0.963h. 0.85 also excludes "Level" and icons.
-    private const val ROI_FRACTION = 0.85f
+        // Measured C$ bounds: x 0.973-0.992w, y 0.902-0.963h. 0.85 also excludes "Level" and icons.
+        const val ROI_FRACTION = 0.85f
 
-    // Measured fill-only glyph heights: "C" 2.22-2.28% and "$" 2.96-2.97% of frame height.
-    private const val MIN_GLYPH_HEIGHT_FRACTION = 0.018f
-    private const val MAX_GLYPH_HEIGHT_FRACTION = 0.055f
+        // Measured fill-only glyph heights: "C" 2.22-2.28% and "$" 2.96-2.97% of frame height.
+        const val MIN_GLYPH_HEIGHT_FRACTION = 0.018f
+        const val MAX_GLYPH_HEIGHT_FRACTION = 0.055f
 
-    // Measured fill-only glyph aspects: "C" 0.71-0.74, "$" 0.50; the outline is excluded.
-    private const val MIN_GLYPH_ASPECT = 0.30f
-    private const val MAX_GLYPH_ASPECT = 1.30f
+        // Measured fill-only glyph aspects: "C" 0.71-0.74, "$" 0.50; the outline is excluded.
+        const val MIN_GLYPH_ASPECT = 0.30f
+        const val MAX_GLYPH_ASPECT = 1.30f
 
-    // Measured pair: aspect 1.09-1.10, "$"/"C" height ratio 1.30-1.33, gap 2-3 px.
-    private const val MIN_PAIR_ASPECT = 0.85f
-    private const val MAX_PAIR_ASPECT = 1.60f
-    private const val MAX_PAIR_HEIGHT_RATIO = 1.45f
-    private const val MAX_PAIR_GAP_FRACTION = 0.5f
+        // Measured pair: aspect 1.09-1.10, "$"/"C" height ratio 1.30-1.33, gap 2-3 px.
+        const val MIN_PAIR_ASPECT = 0.85f
+        const val MAX_PAIR_ASPECT = 1.60f
+        const val MAX_PAIR_HEIGHT_RATIO = 1.45f
+        const val MAX_PAIR_GAP_FRACTION = 0.5f
 
-    // Measured right edge 9-13 px (0.23-0.29 glyph heights) from the frame edge; amount digits
-    // end more than two glyph heights short, so this anchor is what rejects the digits.
-    private const val MAX_RIGHT_GAP_FRACTION = 0.8f
+        // Measured right edge 9-13 px (0.23-0.29 glyph heights) from the frame edge; amount digits
+        // end more than two glyph heights short, so this anchor is what rejects the digits.
+        const val MAX_RIGHT_GAP_FRACTION = 0.8f
 
-    // Measured centres: x 0.983-0.985w, y 0.921-0.963h.
-    private const val MIN_CENTRE_X_FRACTION = 0.93f
-    private const val MIN_CENTRE_Y_FRACTION = 0.88f
-    private const val TARGET_CENTRE_X_FRACTION = 0.985f
-    private const val TARGET_CENTRE_Y_FRACTION = 0.94f
-    private const val TARGET_PAIR_ASPECT = 1.10f
+        // Measured centres: x 0.983-0.985w, y 0.921-0.963h.
+        const val MIN_CENTRE_X_FRACTION = 0.93f
+        const val MIN_CENTRE_Y_FRACTION = 0.88f
+        const val TARGET_CENTRE_X_FRACTION = 0.985f
+        const val TARGET_CENTRE_Y_FRACTION = 0.94f
+        const val TARGET_PAIR_ASPECT = 1.10f
 
-    // Ignores anti-aliased specks that survive the color tolerance.
-    private const val MIN_COMPONENT_AREA = 6
+        // Ignores anti-aliased specks that survive the color tolerance.
+        const val MIN_COMPONENT_AREA = 6
 
-    // The committed C$ crops are 51x42 and 51x46; anything this small is scanned whole.
-    private const val MIN_FRAME_WIDTH = 320
-    private const val MIN_FRAME_HEIGHT = 240
+        // The committed C$ crops are 51x42 and 51x46; anything this small is scanned whole.
+        const val MIN_FRAME_WIDTH = 320
+        const val MIN_FRAME_HEIGHT = 240
+    }
 
     private class Component {
         var left = 0
@@ -81,7 +84,7 @@ object CoinsDetector {
     private var groupSize = IntArray(0)
 
     @Synchronized
-    fun isVisible(bitmap: Bitmap, width: Int = bitmap.width, height: Int = bitmap.height): Boolean {
+    override fun isVisible(bitmap: Bitmap, width: Int, height: Int): Boolean {
         if (height >= width) return false
         val frame = isFullFrame(width, height)
         val roiX = roiStart(width, frame)
@@ -96,19 +99,6 @@ object CoinsDetector {
         return detect(roiPixels, roiW, 0, 0, roiX, roiY, roiW, roiH, width, height, frame) != null
     }
 
-    /** Pure-JVM entry point used by host tests. [pixels] is a row-major ARGB frame. */
-    @Synchronized
-    fun find(pixels: IntArray, width: Int, height: Int): Indicator? {
-        if (height >= width) return null
-        val frame = isFullFrame(width, height)
-        val roiX = roiStart(width, frame)
-        val roiY = roiStart(height, frame)
-        val roiW = width - roiX
-        val roiH = height - roiY
-        if (roiW <= 0 || roiH <= 0) return null
-        return detect(pixels, width, roiX, roiY, roiX, roiY, roiW, roiH, width, height, frame)
-    }
-
     private fun isFullFrame(width: Int, height: Int) =
         width >= MIN_FRAME_WIDTH && height >= MIN_FRAME_HEIGHT
 
@@ -120,8 +110,8 @@ object CoinsDetector {
         val g = (pixel shr 8) and 0xFF
         val b = pixel and 0xFF
         return abs(r - FILL_R) <= COLOR_TOLERANCE &&
-            abs(g - FILL_G) <= COLOR_TOLERANCE &&
-            abs(b - FILL_B) <= COLOR_TOLERANCE
+                abs(g - FILL_G) <= COLOR_TOLERANCE &&
+                abs(b - FILL_B) <= COLOR_TOLERANCE
     }
 
     private fun aspect(width: Int, height: Int) = width.toFloat() / height
@@ -237,9 +227,17 @@ object CoinsDetector {
                 val last = components[groupLast[g]]
                 val overlap = min(last.bottom, component.bottom) - max(last.top, component.top) + 1
                 if (overlap < 0.75f * min(last.height, component.height)) continue
-                if (max(last.height, component.height) > MAX_PAIR_HEIGHT_RATIO * min(last.height, component.height)) continue
+                if (max(last.height, component.height) > MAX_PAIR_HEIGHT_RATIO * min(
+                        last.height,
+                        component.height
+                    )
+                ) continue
                 val gap = component.left - last.right - 1
-                if (gap < -1 || gap > MAX_PAIR_GAP_FRACTION * min(last.height, component.height)) continue
+                if (gap < -1 || gap > MAX_PAIR_GAP_FRACTION * min(
+                        last.height,
+                        component.height
+                    )
+                ) continue
                 groupSecondLast[g] = groupLast[g]
                 groupLast[g] = order[i]
                 groupSize[g]++
@@ -271,14 +269,26 @@ object CoinsDetector {
             } else {
                 val first = components[groupSecondLast[g]]
                 val second = components[groupLast[g]]
-                if (max(first.height, second.height) > MAX_PAIR_HEIGHT_RATIO * min(first.height, second.height)) continue
+                if (max(first.height, second.height) > MAX_PAIR_HEIGHT_RATIO * min(
+                        first.height,
+                        second.height
+                    )
+                ) continue
                 val gap = second.left - first.right - 1
-                if (gap < -1 || gap > MAX_PAIR_GAP_FRACTION * min(first.height, second.height)) continue
+                if (gap < -1 || gap > MAX_PAIR_GAP_FRACTION * min(
+                        first.height,
+                        second.height
+                    )
+                ) continue
                 val left = min(first.left, second.left) + offsetX
                 val top = min(first.top, second.top) + offsetY
                 val right = max(first.right, second.right) + offsetX
                 val bottom = max(first.bottom, second.bottom) + offsetY
-                if (aspect(right - left + 1, bottom - top + 1) !in MIN_PAIR_ASPECT..MAX_PAIR_ASPECT) continue
+                if (aspect(
+                        right - left + 1,
+                        bottom - top + 1
+                    ) !in MIN_PAIR_ASPECT..MAX_PAIR_ASPECT
+                ) continue
                 candidate = Indicator(left, top, right, bottom)
             }
 
@@ -294,10 +304,10 @@ object CoinsDetector {
 
             val pairAspect = aspect(candidate.right - candidate.left + 1, glyphHeight)
             val score = abs(pairAspect - TARGET_PAIR_ASPECT) * 1000 +
-                hypot(
-                    centreX - frameW * TARGET_CENTRE_X_FRACTION,
-                    centreY - frameH * TARGET_CENTRE_Y_FRACTION,
-                )
+                    hypot(
+                        centreX - frameW * TARGET_CENTRE_X_FRACTION,
+                        centreY - frameH * TARGET_CENTRE_Y_FRACTION,
+                    )
             if (score < bestScore) {
                 bestScore = score
                 best = candidate

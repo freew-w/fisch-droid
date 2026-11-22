@@ -8,21 +8,19 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import io.github.freew_w.fischdroid.Orchestrator
+import io.github.freew_w.fischdroid.automation.GestureSink
 import io.github.freew_w.fischdroid.config.Config
-import io.github.freew_w.fischdroid.overlay.DetectionOverlay
-import io.github.freew_w.fischdroid.overlay.FloatingOverlay
+import io.github.freew_w.fischdroid.overlay.OverlayHost
 
 private const val TAG = "TapService"
 
-class TapService : AccessibilityService() {
-    companion object {
-        @Volatile
-        var instance: TapService? = null
-            private set
-
-        private const val STROKE_DURATION_MS = 20L
-        private const val RELEASE_DURATION_MS = 1L
-        private const val HOLD_JITTER_PX = 1f
+class TapService : AccessibilityService(), GestureSink {
+    private companion object {
+        const val STROKE_DURATION_MS = 20L
+        const val RELEASE_DURATION_MS = 1L
+        const val HOLD_JITTER_PX = 1f
+        const val HUD_OFFSET_PX = 150f
     }
 
     /**
@@ -78,7 +76,7 @@ class TapService : AccessibilityService() {
         }
     }
 
-    private var floatingOverlay: FloatingOverlay? = null
+    private var overlayHost: OverlayHost? = null
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
 
@@ -87,27 +85,35 @@ class TapService : AccessibilityService() {
     override fun onServiceConnected() {
         Log.i(TAG, "onServiceConnected")
         super.onServiceConnected()
-        DetectionOverlay.show(this) { Config.trackY + Config.trackH / 2f - 150f }
-        floatingOverlay = FloatingOverlay(this)
-        instance = this
+
+        overlayHost?.hide()
+        val overlays = OverlayHost(
+            service = this,
+            drawY = { Config.trackY + Config.trackH / 2f - HUD_OFFSET_PX },
+            isRunning = { Orchestrator.isRunning },
+            onToggle = { Orchestrator.toggle() },
+        )
+        overlays.show()
+        overlayHost = overlays
+        Orchestrator.attach(gestures = this, hud = overlays.hud)
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
         Log.i(TAG, "onUnbind")
+        Orchestrator.detach()
+        overlayHost?.hide()
+        overlayHost = null
         resetHold()
-        DetectionOverlay.hide()
-        floatingOverlay?.hide()
-        instance = null
         return super.onUnbind(intent)
     }
 
-    fun press(x: Float, y: Float, duration: Long) {
+    override fun press(x: Float, y: Float, durationMs: Long) {
         mainHandler.post {
             // The tap is a new gesture, so any tracked hold is no longer valid.
             resetHold()
 
             val tapPath = Path().apply { moveTo(x, y) }
-            val tapStroke = GestureDescription.StrokeDescription(tapPath, 0L, duration)
+            val tapStroke = GestureDescription.StrokeDescription(tapPath, 0L, durationMs)
             val tapGesture = GestureDescription.Builder().addStroke(tapStroke).build()
 
             if (!dispatchGesture(tapGesture, object : GestureResultCallback() {
@@ -124,7 +130,7 @@ class TapService : AccessibilityService() {
         }
     }
 
-    fun setHolding(hold: Boolean, x: Float, y: Float) {
+    override fun setHolding(hold: Boolean, x: Float, y: Float) {
         mainHandler.post { updateHolding(hold, x, y) }
     }
 

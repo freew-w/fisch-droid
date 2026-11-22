@@ -1,60 +1,63 @@
 package io.github.freew_w.fischdroid
 
 import android.graphics.Bitmap
-import android.os.SystemClock
+import io.github.freew_w.fischdroid.automation.DetectionHudSink
+import io.github.freew_w.fischdroid.automation.FishingPipeline
+import io.github.freew_w.fischdroid.automation.GestureSink
 import io.github.freew_w.fischdroid.config.Config
-import io.github.freew_w.fischdroid.minigame.Controller
-import io.github.freew_w.fischdroid.minigame.Detector
-import io.github.freew_w.fischdroid.services.TapService
-import io.github.freew_w.fischdroid.shake.Clicker
+import io.github.freew_w.fischdroid.config.Settings
+import io.github.freew_w.fischdroid.control.BarController
+import io.github.freew_w.fischdroid.detection.CoinsDetector
+import io.github.freew_w.fischdroid.detection.MinigameDetector
+import io.github.freew_w.fischdroid.detection.ShakeDetector
 
+/**
+ * Process-wide composition root for automation.
+ *
+ * `TapService` attaches the accessibility-backed gesture/overlay adapters when it connects, and
+ * `ScreenCaptureService` feeds frames in. Everything below this object is constructor-injected and
+ * testable; only the Android service boundary uses this singleton.
+ */
 object Orchestrator {
-    private const val CAST_AFTER_MS = 1000L
+    @Volatile
+    private var pipeline: FishingPipeline? = null
 
-    private var lastDetectionMs = 0L
-
-    var started = false
-
-    private fun castRod(spec: Detector.ScanSpec) {
-        TapService.instance?.press(spec.castHoldX, spec.castHoldY, 500L)
+    @Synchronized
+    fun attach(
+        gestures: GestureSink,
+        hud: DetectionHudSink,
+        settings: () -> Settings = Config::snapshot,
+    ) {
+        pipeline?.stop()
+        pipeline = FishingPipeline(
+            minigameDetector = MinigameDetector(),
+            coinsDetector = CoinsDetector(),
+            shakeDetector = ShakeDetector(),
+            controller = BarController(),
+            gestures = gestures,
+            hud = hud,
+            settings = settings,
+        )
     }
 
-    private fun scanSpec() = Detector.ScanSpec(
-        trackX = Config.trackX,
-        trackY = Config.trackY,
-        trackW = Config.trackW,
-        trackH = Config.trackH,
-        control = Config.rodControl,
-        positionGain = Config.positionGain,
-        velocityGain = Config.velocityGain,
-        switchBand = Config.switchBand,
-        castHoldX = Config.castHoldX,
-        castHoldY = Config.castHoldY,
-        fishColor = Config.fishColor,
-    )
+    @Synchronized
+    fun detach() {
+        pipeline?.stop()
+        pipeline = null
+    }
 
-    suspend fun processFrame(bitmap: Bitmap, frameWidth: Int, frameHeight: Int) {
-        if (bitmap.height > bitmap.width || !started) {
-            TapService.instance?.setHolding(false, 1100f, 600f)
-            return
-        }
+    /** No-op until [attach] runs, so capture can start before accessibility is enabled. */
+    fun processFrame(bitmap: Bitmap, frameWidth: Int, frameHeight: Int) {
+        pipeline?.processFrame(bitmap, frameWidth, frameHeight)
+    }
 
-        val now = SystemClock.elapsedRealtime()
-        val spec = scanSpec()
+    val isRunning: Boolean
+        get() = pipeline?.isRunning == true
 
-        if (Detector.notInMinigame(bitmap)) {
-            if (now - lastDetectionMs > CAST_AFTER_MS) {
-                lastDetectionMs = now
-                castRod(spec)
-            }
-
-            if (Clicker.processFrame(bitmap, frameWidth, frameHeight)) {
-                lastDetectionMs = now
-            }
-        } else {
-            if (Controller.processFrame(bitmap, spec)) {
-                lastDetectionMs = now
-            }
-        }
+    /** Toggles automation and returns the new running state. */
+    fun toggle(): Boolean {
+        val current = pipeline ?: return false
+        current.toggle()
+        return current.isRunning
     }
 }
