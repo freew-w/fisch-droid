@@ -127,11 +127,14 @@
     <string name="setup_load_image">Load image</string>
     <string name="setup_load_failed">Couldn\'t load that image</string>
     <string name="setup_no_image">Load an image first</string>
-    <string name="setup_zoom_hint">Pinch to zoom · drag to pan · tap to place the cursor</string>
+    <string name="setup_zoom_hint">Pinch or use + / − to zoom · drag to pan · tap to place the cursor</string>
     <string name="setup_nudge_up">Nudge up one pixel</string>
     <string name="setup_nudge_down">Nudge down one pixel</string>
     <string name="setup_nudge_left">Nudge left one pixel</string>
     <string name="setup_nudge_right">Nudge right one pixel</string>
     <string name="setup_nudge_label">1 px</string>
+    <string name="setup_zoom_in">Zoom in</string>
+    <string name="setup_zoom_out">Zoom out</string>
+    <string name="setup_zoom_label">Zoom</string>
     <string name="setup_fit">Zoom to fit</string>
 </resources>

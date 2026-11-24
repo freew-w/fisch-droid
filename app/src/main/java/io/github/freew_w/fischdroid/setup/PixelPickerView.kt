@@ -108,6 +108,10 @@ class PixelPickerView @JvmOverloads constructor(
             }
         }).apply { isQuickScaleEnabled = false }
 
+    private companion object {
+        const val ZOOM_STEP = 1.5f
+    }
+
     init {
         isClickable = true
         isFocusable = true
@@ -169,6 +173,28 @@ class PixelPickerView @JvmOverloads constructor(
         if (bitmap == null) return
         pendingCursor = PixelPoint(cursorX, cursorY)
         fitToView()
+    }
+
+    /** Steps the zoom in around the cursor; returns false when already at the maximum. */
+    fun zoomIn(): Boolean = zoomBy(ZOOM_STEP)
+
+    /** Steps the zoom out around the cursor; returns false when already fitted. */
+    fun zoomOut(): Boolean = zoomBy(1f / ZOOM_STEP)
+
+    private fun zoomBy(factor: Float): Boolean {
+        if (bitmap == null || width == 0 || height == 0) return false
+        val next = (scale * factor).coerceIn(minScale, maxScale)
+        if (next == scale) return false
+
+        // Keep the selected pixel under the same view point while stepping.
+        val anchorX = offsetX + (cursorX + 0.5f) * scale
+        val anchorY = offsetY + (cursorY + 0.5f) * scale
+        offsetX = anchorX - (anchorX - offsetX) * (next / scale)
+        offsetY = anchorY - (anchorY - offsetY) * (next / scale)
+        scale = next
+        clampTranslation()
+        invalidate()
+        return true
     }
 
     private fun pixelColor(x: Int, y: Int): Int {

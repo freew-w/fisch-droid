@@ -27,9 +27,10 @@ import io.github.freew_w.fischdroid.config.Config
 /**
  * Full-screen pixel picker used by the first-run wizard and from the main screen.
  *
- * A tap moves the cursor, the four arrow buttons nudge it by exactly one image pixel and the
- * confirm button commits the pixel under the cursor to the active field. Regions need two
- * confirms (top-left, then bottom-right) and are returned as x, y, width, height.
+ * A tap moves the cursor, the four arrow buttons nudge it by exactly one image pixel, the
+ * zoom buttons or a pinch scale the image, and the confirm button commits the pixel under the
+ * cursor to the active field. Regions need two confirms (top-left, then bottom-right) and are
+ * returned as x, y, width, height.
  */
 class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListener {
 
@@ -146,6 +147,8 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
         findViewById<View>(R.id.btn_nudge_down).setOnClickListener { nudge(0, 1) }
         findViewById<View>(R.id.btn_nudge_left).setOnClickListener { nudge(-1, 0) }
         findViewById<View>(R.id.btn_nudge_right).setOnClickListener { nudge(1, 0) }
+        findViewById<View>(R.id.btn_setup_zoom_in).setOnClickListener { zoom(true) }
+        findViewById<View>(R.id.btn_setup_zoom_out).setOnClickListener { zoom(false) }
 
         confirmButton.setOnClickListener {
             if (isDone()) saveAndFinish() else confirm()
@@ -176,6 +179,17 @@ class SetupActivity : AppCompatActivity(), PixelPickerView.OnCursorChangedListen
         }
         if (picker.nudge(dx, dy)) {
             picker.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+        }
+    }
+
+    private fun zoom(zoomIn: Boolean) {
+        if (!imageLoaded) {
+            Toast.makeText(this, R.string.setup_no_image, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val changed = if (zoomIn) picker.zoomIn() else picker.zoomOut()
+        if (changed) {
+            picker.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
         }
     }
 
