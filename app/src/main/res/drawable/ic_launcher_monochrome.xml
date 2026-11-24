@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Themed-icon (Android 13+) layer. Android tints this drawable to a single system colour,
+  so it must be a plain silhouette: no wave, no gill line, just the fish with its eye
+  punched out. Sharing the coloured foreground here left the water and the gill to be
+  flattened into the same tint, which read as smudges.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M24.5,54 C32.5,41 51.5,37 65.5,45 L77.5,38 C76,48 76,60 77.5,70 L63.5,63 C49.5,71 32.5,67 24.5,54 Z M33.5,51 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 z" />
+</vector>

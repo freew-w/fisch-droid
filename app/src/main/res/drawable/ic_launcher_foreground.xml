@@ -1,4 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive-icon foreground: white fish facing left.
+
+  Everything stays inside the 66dp safe circle (centre 54,54 / radius 33) so round and
+  squircle launcher masks never clip the tail: the widest points are the tail tips at
+  (77.5, 38) and (77.5, 70), i.e. radius 30.5. The white mass is centred by centroid,
+  not by bounding box, because the tail is a light shape and the body is heavy.
+
+  The gill is a hole in the silhouette (evenOdd subpath) rather than a stroke: a white
+  stroke on a white body is invisible, and a hole follows whatever the launcher shows
+  behind the icon instead of hardcoding the background colour.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -7,11 +19,5 @@
     <path
         android:fillColor="#FFFFFF"
         android:fillType="evenOdd"
-        android:pathData="M22,54 C30,40 50,36 63,44 L84,33 C83.2,42 83.2,66 84,75 L63,64 C50,72 30,68 22,54 Z M34,51 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 z" />
-    <path
-        android:fillColor="@android:color/transparent"
-        android:pathData="M48,42 C45,47 45,61 48,66"
-        android:strokeWidth="3"
-        android:strokeColor="#FFFFFF"
-        android:strokeLineCap="round" />
+        android:pathData="M24.5,54 C32.5,41 51.5,37 65.5,45 L77.5,38 C76,48 76,60 77.5,70 L63.5,63 C49.5,71 32.5,67 24.5,54 Z M33.5,51 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 z M47.2,43.5 C43.8,49 43.8,59 47.2,64.5 L49.8,64.5 C46.6,59 46.6,49 49.8,43.5 Z" />
 </vector>
