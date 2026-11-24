@@ -7,11 +7,11 @@
     <path
         android:fillColor="?attr/colorOnSurface"
         android:fillType="evenOdd"
-        android:pathData="M8,6 h8 a1,1 0 0,1 1,1 v4 a1,1 0 0,1 -1,1 h-8 a1,1 0 0,1 -1,-1 v-4 a1,1 0 0,1 1,-1 z M9.6,9 m-0.9,0 a0.9,0.9 0 1,0 1.8,0 a0.9,0.9 0 1,0 -1.8,0 z M14.4,9 m-0.9,0 a0.9,0.9 0 1,0 1.8,0 a0.9,0.9 0 1,0 -1.8,0 z M6.5,12.6 h11 a1.4,1.4 0 0,1 1.4,1.4 v3.2 a1.4,1.4 0 0,1 -1.4,1.4 h-11 a1.4,1.4 0 0,1 -1.4,-1.4 v-3.2 a1.4,1.4 0 0,1 1.4,-1.4 z M4.6,12.6 a1,1 0 0,1 1,1 v3.6 a1,1 0 0,1 -2,0 v-3.6 a1,1 0 0,1 1,-1 z M19.4,12.6 a1,1 0 0,1 1,1 v3.6 a1,1 0 0,1 -2,0 v-3.6 a1,1 0 0,1 1,-1 z M8,18.4 h1.4 v2.2 a0.7,0.7 0 0,1 -1.4,0 z M14.6,18.4 h1.4 v2.2 a0.7,0.7 0 0,1 -1.4,0 z" />
+        android:pathData="M4.5,17 v-4.5 C4.5,9.2 7.9,6.5 12,6.5 s7.5,2.7 7.5,6 V17 a1.5,1.5 0 0,1 -1.5,1.5 H6 A1.5,1.5 0 0,1 4.5,17 z M9.6,12 m-1,0 a1,1 0 1,0 2,0 a1,1 0 1,0 -2,0 z M14.4,12 m-1,0 a1,1 0 1,0 2,0 a1,1 0 1,0 -2,0 z" />
     <path
         android:fillColor="@android:color/transparent"
-        android:pathData="M6.6,4.2 L8.2,5.9 M17.4,4.2 L15.8,5.9"
-        android:strokeWidth="1.4"
+        android:pathData="M7.5,7.8 L6,6.1 M16.5,7.8 L18,6.1"
+        android:strokeWidth="1.5"
         android:strokeColor="?attr/colorOnSurface"
         android:strokeLineCap="round" />
 </vector>
