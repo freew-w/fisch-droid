@@ -9,7 +9,7 @@ enum class SetupFieldType {
     /** Two pixels: top-left, then bottom-right. Stored as x, y, width, height. */
     REGION,
 
-    /** A single screen point (the cast target). Stored as x, y. */
+    /** A single screen point (a hotbar slot). Stored as x, y. */
     POINT,
 
     /** The RGB color of a single pixel. */

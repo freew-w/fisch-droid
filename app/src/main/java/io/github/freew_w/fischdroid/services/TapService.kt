@@ -13,6 +13,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityManager
 import io.github.freew_w.fischdroid.Orchestrator
 import io.github.freew_w.fischdroid.automation.GestureSink
+import io.github.freew_w.fischdroid.automation.PressStep
 import io.github.freew_w.fischdroid.config.Config
 import io.github.freew_w.fischdroid.overlay.OverlayHost
 
@@ -98,6 +99,12 @@ class TapService : AccessibilityService(), GestureSink {
 
     private var overlayHost: OverlayHost? = null
 
+    /**
+     * Identifies the newest tap chain. A newer [press] or [pressSequence] invalidates the pending
+     * steps of an older burst so two gesture chains never overlap.
+     */
+    private var tapChainToken = 0
+
     /** Keeps the floating start/stop bubble in step with screen capture being active. */
     private val captureStateListener: (Boolean) -> Unit = { active ->
         overlayHost?.setControlsVisible(active)
@@ -142,24 +149,70 @@ class TapService : AccessibilityService(), GestureSink {
 
     override fun press(x: Int, y: Int, durationMs: Long) {
         mainHandler.post {
+            tapChainToken++
             // The tap is a new gesture, so any tracked hold is no longer valid.
             resetHold()
 
-            val tapPath = Path().apply { moveTo(x.toFloat(), y.toFloat()) }
-            val tapStroke = GestureDescription.StrokeDescription(tapPath, 0L, durationMs)
-            val tapGesture = GestureDescription.Builder().addStroke(tapStroke).build()
-
-            if (!dispatchGesture(tapGesture, object : GestureResultCallback() {
-                    override fun onCompleted(gestureDescription: GestureDescription?) {
-                        Log.i(TAG, "press completed at $x, $y")
-                    }
-
-                    override fun onCancelled(gestureDescription: GestureDescription?) {
-                        Log.i(TAG, "press at $x, $y cancelled")
-                    }
-                }, mainHandler)) {
-                Log.e(TAG, "press: dispatchGesture was rejected by the system.")
+            dispatchTap(x, y, durationMs) { message ->
+                Log.i(TAG, message)
             }
+        }
+    }
+
+    override fun pressSequence(steps: List<PressStep>) {
+        if (steps.isEmpty()) return
+        mainHandler.post {
+            tapChainToken++
+            val token = tapChainToken
+            // A burst is a fresh gesture chain too, so drop any tracked hold.
+            resetHold()
+            dispatchSequence(steps, 0, token)
+        }
+    }
+
+    /**
+     * Dispatches one tap and continues [steps] from the result callback, after the step's own
+     * [PressStep.delayAfterMs]. A cancelled tap still advances the chain: a dropped gesture must
+     * not leave the rod unequipped or the cast un-fired.
+     */
+    private fun dispatchSequence(steps: List<PressStep>, index: Int, token: Int) {
+        if (token != tapChainToken || index >= steps.size) return
+        val step = steps[index]
+        dispatchTap(step.x, step.y, step.durationMs) { message ->
+            Log.i(TAG, message)
+            val next = index + 1
+            if (next < steps.size && token == tapChainToken) {
+                mainHandler.postDelayed(
+                    { dispatchSequence(steps, next, token) },
+                    step.delayAfterMs,
+                )
+            }
+        }
+    }
+
+    /** Dispatches a single-stroke tap and reports the outcome on [mainHandler] after it settles. */
+    private fun dispatchTap(
+        x: Int,
+        y: Int,
+        durationMs: Long,
+        onResult: (message: String) -> Unit,
+    ) {
+        val tapPath = Path().apply { moveTo(x.toFloat(), y.toFloat()) }
+        val tapStroke = GestureDescription.StrokeDescription(tapPath, 0L, durationMs)
+        val tapGesture = GestureDescription.Builder().addStroke(tapStroke).build()
+
+        if (!dispatchGesture(tapGesture, object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
+                    onResult("press completed at $x, $y")
+                }
+
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    onResult("press at $x, $y cancelled")
+                }
+            }, mainHandler)
+        ) {
+            Log.e(TAG, "press: dispatchGesture was rejected by the system.")
+            onResult("press at $x, $y rejected")
         }
     }
 

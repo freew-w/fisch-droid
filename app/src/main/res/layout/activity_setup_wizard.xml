@@ -135,7 +135,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="@dimen/space_m"
                             android:layout_weight="1"
-                            android:text="@string/wizard_bullet_cast"
+                            android:text="@string/wizard_bullet_hotbar"
                             android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
                             android:textColor="?attr/colorOnSurface" />
                     </LinearLayout>
@@ -217,9 +217,9 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Step 2: cast point -->
+            <!-- Step 2: hotbar slots -->
             <LinearLayout
-                android:id="@+id/step_cast"
+                android:id="@+id/step_hotbar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
@@ -228,7 +228,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/wizard_cast_title"
+                    android:text="@string/wizard_hotbar_title"
                     android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
                     android:textColor="?attr/colorOnSurface" />
 
@@ -236,7 +236,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_s"
-                    android:text="@string/wizard_cast_body"
+                    android:text="@string/wizard_hotbar_body"
                     android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
                     android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -245,65 +245,94 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_xl"
                     android:baselineAligned="false"
+                    android:gravity="center_vertical"
                     android:orientation="horizontal">
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/til_wizard_cast_x"
-                        style="@style/Widget.FischDroid.TextInputLayout"
+                    <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:hint="@string/cast_hold_x_label">
+                        android:orientation="vertical">
 
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/et_wizard_cast_x"
+                        <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:imeOptions="actionNext"
-                            android:inputType="numberDecimal"
-                            android:maxLines="1" />
-                    </com.google.android.material.textfield.TextInputLayout>
+                            android:text="@string/hotbar_rod_label"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                            android:textColor="?attr/colorOnSurface" />
 
-                    <Space
-                        android:layout_width="@dimen/space_m"
-                        android:layout_height="1dp" />
+                        <TextView
+                            android:id="@+id/tv_wizard_rod_status"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:freezesText="true"
+                            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                            android:textColor="?attr/colorPrimary"
+                            tools:text="1100, 600" />
+                    </LinearLayout>
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/til_wizard_cast_y"
-                        style="@style/Widget.FischDroid.TextInputLayout"
-                        android:layout_width="0dp"
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_wizard_pick_rod"
+                        style="@style/Widget.Material3.Button.OutlinedButton.Icon"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:hint="@string/cast_hold_y_label">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/et_wizard_cast_y"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:imeOptions="actionDone"
-                            android:inputType="numberDecimal"
-                            android:maxLines="1" />
-                    </com.google.android.material.textfield.TextInputLayout>
+                        android:layout_marginStart="@dimen/space_m"
+                        android:contentDescription="@string/pick_slot_desc"
+                        android:text="@string/pick_slot"
+                        app:icon="@drawable/ic_target" />
                 </LinearLayout>
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_wizard_pick_cast"
-                    style="@style/Widget.Material3.Button.OutlinedButton.Icon"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_xl"
-                    android:text="@string/wizard_pick_cast"
-                    app:icon="@drawable/ic_target" />
-
-                <TextView
-                    android:id="@+id/tv_wizard_cast_status"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_m"
-                    android:freezesText="true"
+                    android:baselineAligned="false"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/hotbar_bestiary_label"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                            android:textColor="?attr/colorOnSurface" />
+
+                        <TextView
+                            android:id="@+id/tv_wizard_bestiary_status"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:freezesText="true"
+                            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                            android:textColor="?attr/colorPrimary"
+                            tools:text="900, 600" />
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_wizard_pick_bestiary"
+                        style="@style/Widget.Material3.Button.OutlinedButton.Icon"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/space_m"
+                        android:contentDescription="@string/pick_slot_desc"
+                        android:text="@string/pick_slot"
+                        app:icon="@drawable/ic_target" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_wizard_hotbar_error"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_m"
+                    android:text="@string/wizard_slot_invalid"
                     android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-                    android:textColor="?attr/colorPrimary"
-                    tools:text="Cast point picked: 1100, 600" />
+                    android:textColor="?attr/colorError"
+                    android:visibility="gone" />
             </LinearLayout>
 
             <!-- Step 3: track region -->

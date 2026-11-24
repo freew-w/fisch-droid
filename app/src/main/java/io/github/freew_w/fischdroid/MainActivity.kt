@@ -90,9 +90,13 @@ class MainActivity : AppCompatActivity() {
         if (values.containsKey(SetupActivity.FIELD_ID_FISH_COLOR)) {
             Config.fishColor = values.getInt(SetupActivity.FIELD_ID_FISH_COLOR)
         }
-        values.getIntArray(SetupActivity.FIELD_ID_CAST_POINT)?.takeIf { it.size == 2 }?.let { point ->
-            Config.castHoldX = point[0]
-            Config.castHoldY = point[1]
+        values.getIntArray(SetupActivity.FIELD_ID_ROD_SLOT)?.takeIf { it.size == 2 }?.let { slot ->
+            Config.rodSlotX = slot[0]
+            Config.rodSlotY = slot[1]
+        }
+        values.getIntArray(SetupActivity.FIELD_ID_BESTIARY_SLOT)?.takeIf { it.size == 2 }?.let { slot ->
+            Config.bestiarySlotX = slot[0]
+            Config.bestiarySlotY = slot[1]
         }
 
         updateConfigUi()
@@ -159,8 +163,22 @@ class MainActivity : AppCompatActivity() {
             openColorPicker()
         }
 
-        findViewById<View>(R.id.btn_pick_cast_point).setOnClickListener {
-            openCastPicker()
+        findViewById<View>(R.id.btn_pick_rod_slot).setOnClickListener {
+            openSlotPicker(
+                SetupActivity.FIELD_ID_ROD_SLOT,
+                R.string.setup_field_rod_slot,
+                Config.rodSlotX,
+                Config.rodSlotY,
+            )
+        }
+
+        findViewById<View>(R.id.btn_pick_bestiary_slot).setOnClickListener {
+            openSlotPicker(
+                SetupActivity.FIELD_ID_BESTIARY_SLOT,
+                R.string.setup_field_bestiary_slot,
+                Config.bestiarySlotX,
+                Config.bestiarySlotY,
+            )
         }
 
         bindConfigField(
@@ -219,20 +237,6 @@ class MainActivity : AppCompatActivity() {
             check = { it >= 0 },
             set = { Config.switchBand = it },
         )
-        bindConfigField(
-            findViewById(R.id.et_cast_hold_x),
-            get = { Config.castHoldX },
-            parse = String::toIntOrNull,
-            check = { it >= 0 },
-            set = { Config.castHoldX = it },
-        )
-        bindConfigField(
-            findViewById(R.id.et_cast_hold_y),
-            get = { Config.castHoldY },
-            parse = String::toIntOrNull,
-            check = { it >= 0 },
-            set = { Config.castHoldY = it },
-        )
 
         updateConfigUi()
         renderStatus()
@@ -290,14 +294,14 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun openCastPicker() {
+    private fun openSlotPicker(fieldId: String, labelRes: Int, x: Int, y: Int) {
         setupLauncher.launch(
             SetupActivity.intent(
                 this,
                 SetupField.point(
-                    SetupActivity.FIELD_ID_CAST_POINT,
-                    getString(R.string.setup_field_cast),
-                    PixelPoint(Config.castHoldX, Config.castHoldY),
+                    fieldId,
+                    getString(labelRes),
+                    PixelPoint(x, y),
                 ),
             )
         )
@@ -309,6 +313,12 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.fish_color_swatch).backgroundTintList =
             ColorStateList.valueOf(color)
         findViewById<TextView>(R.id.tv_fish_color_hex).text = color.toHexColor()
+
+        // The hotbar slots
+        findViewById<TextView>(R.id.tv_hotbar_rod).text =
+            getString(R.string.hotbar_slot_value, Config.rodSlotX, Config.rodSlotY)
+        findViewById<TextView>(R.id.tv_hotbar_bestiary).text =
+            getString(R.string.hotbar_slot_value, Config.bestiarySlotX, Config.bestiarySlotY)
 
         // The minigame fields
         boundFields.forEach { (view, get) ->

@@ -4,7 +4,7 @@ package io.github.freew_w.fischdroid.detection
  * Everything [MinigameDetector] needs for one frame.
  *
  * This is intentionally only detection input: track geometry and the fish colour. Control gains
- * and cast coordinates live in their own settings types, so tuning one concern cannot silently
+ * and hotbar slots live in their own settings types, so tuning one concern cannot silently
  * change another.
  */
 data class DetectionSpec(

@@ -17,8 +17,10 @@ object Config {
     private const val KEY_POSITION_GAIN = "position_gain"
     private const val KEY_VELOCITY_GAIN = "velocity_gain"
     private const val KEY_SWITCH_BAND = "switch_band"
-    private const val KEY_CAST_HOLD_X = "cast_hold_x"
-    private const val KEY_CAST_HOLD_Y = "cast_hold_y"
+    private const val KEY_ROD_SLOT_X = "rod_slot_x"
+    private const val KEY_ROD_SLOT_Y = "rod_slot_y"
+    private const val KEY_BESTIARY_SLOT_X = "bestiary_slot_x"
+    private const val KEY_BESTIARY_SLOT_Y = "bestiary_slot_y"
     private const val KEY_FISH_COLOR = "fish_color"
     private const val KEY_SETUP_COMPLETE = "setup_complete"
     private const val KEY_LAST_IMAGE_URI = "last_image_uri"
@@ -67,13 +69,21 @@ object Config {
         get() = prefs.getFloat(KEY_SWITCH_BAND, 200f)
         set(value) = prefs.edit { putFloat(KEY_SWITCH_BAND, value) }
 
-    var castHoldX: Int
-        get() = prefs.getInt(KEY_CAST_HOLD_X, 1100)
-        set(value) = prefs.edit { putInt(KEY_CAST_HOLD_X, value) }
+    var rodSlotX: Int
+        get() = prefs.getInt(KEY_ROD_SLOT_X, 0)
+        set(value) = prefs.edit { putInt(KEY_ROD_SLOT_X, value) }
 
-    var castHoldY: Int
-        get() = prefs.getInt(KEY_CAST_HOLD_Y, 600)
-        set(value) = prefs.edit { putInt(KEY_CAST_HOLD_Y, value) }
+    var rodSlotY: Int
+        get() = prefs.getInt(KEY_ROD_SLOT_Y, 0)
+        set(value) = prefs.edit { putInt(KEY_ROD_SLOT_Y, value) }
+
+    var bestiarySlotX: Int
+        get() = prefs.getInt(KEY_BESTIARY_SLOT_X, 0)
+        set(value) = prefs.edit { putInt(KEY_BESTIARY_SLOT_X, value) }
+
+    var bestiarySlotY: Int
+        get() = prefs.getInt(KEY_BESTIARY_SLOT_Y, 0)
+        set(value) = prefs.edit { putInt(KEY_BESTIARY_SLOT_Y, value) }
 
     var fishColor: Int
         get() = prefs.getInt(KEY_FISH_COLOR, Color.rgb(67, 75, 91))
@@ -97,7 +107,7 @@ object Config {
     fun snapshot(): Settings = Settings(
         track = TrackGeometry(trackX, trackY, trackW, trackH, rodControl),
         control = ControlTuning(positionGain, velocityGain, switchBand),
-        cast = CastTarget(castHoldX, castHoldY),
+        hotbar = HotbarSlots(rodSlotX, rodSlotY, bestiarySlotX, bestiarySlotY),
         fishColor = fishColor,
     )
 }

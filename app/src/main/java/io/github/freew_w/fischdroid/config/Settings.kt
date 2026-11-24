@@ -13,6 +13,6 @@ import io.github.freew_w.fischdroid.detection.TrackGeometry
 data class Settings(
     val track: TrackGeometry,
     val control: ControlTuning,
-    val cast: CastTarget,
+    val hotbar: HotbarSlots,
     val fishColor: Int,
 )

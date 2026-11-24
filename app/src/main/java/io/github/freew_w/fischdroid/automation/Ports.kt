@@ -11,9 +11,21 @@ import io.github.freew_w.fischdroid.detection.ShakeButton
  * input/overlay implementation be plugged in later.
  */
 
+/**
+ * One tap in a [GestureSink.pressSequence] burst. [delayAfterMs] is the pause between this tap
+ * finishing and the next one starting.
+ */
+data class PressStep(val x: Int, val y: Int, val durationMs: Long, val delayAfterMs: Long)
+
 /** The only way the pipeline can inject touches. Implemented by `TapService`. */
 interface GestureSink {
     fun press(x: Int, y: Int, durationMs: Long)
+
+    /**
+     * Dispatches [steps] strictly one after another: each tap starts only after the previous one
+     * completed plus its [PressStep.delayAfterMs]. Used for the hotbar burst that precedes a cast.
+     */
+    fun pressSequence(steps: List<PressStep>)
 
     fun setHolding(hold: Boolean, x: Int, y: Int)
 }
