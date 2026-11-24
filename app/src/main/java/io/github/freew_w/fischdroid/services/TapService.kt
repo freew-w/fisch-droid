@@ -1,13 +1,16 @@
 package io.github.freew_w.fischdroid.services
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.accessibilityservice.GestureDescription
+import android.content.Context
 import android.content.Intent
 import android.graphics.Path
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityManager
 import io.github.freew_w.fischdroid.Orchestrator
 import io.github.freew_w.fischdroid.automation.GestureSink
 import io.github.freew_w.fischdroid.config.Config
@@ -16,11 +19,28 @@ import io.github.freew_w.fischdroid.overlay.OverlayHost
 private const val TAG = "TapService"
 
 class TapService : AccessibilityService(), GestureSink {
-    private companion object {
-        const val STROKE_DURATION_MS = 20L
-        const val RELEASE_DURATION_MS = 1L
-        const val HOLD_JITTER_PX = 1f
-        const val HUD_OFFSET_PX = 150f
+    companion object {
+        private const val STROKE_DURATION_MS = 20L
+        private const val RELEASE_DURATION_MS = 1L
+        private const val HOLD_JITTER_PX = 1f
+        private const val HUD_OFFSET_PX = 150f
+
+        /**
+         * Whether the system currently has this accessibility service enabled. Reads the system
+         * setting rather than the pipeline, so it is correct before the service process connects
+         * (and while it is dead). No permission required.
+         */
+        fun isEnabled(context: Context): Boolean {
+            val manager = context.getSystemService(AccessibilityManager::class.java) ?: return false
+            if (!manager.isEnabled) return false
+            val serviceName = TapService::class.java.name
+            return manager
+                .getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+                .any { info ->
+                    val serviceInfo = info.resolveInfo?.serviceInfo ?: return@any false
+                    serviceInfo.packageName == context.packageName && serviceInfo.name == serviceName
+                }
+        }
     }
 
     /**
@@ -78,6 +98,11 @@ class TapService : AccessibilityService(), GestureSink {
 
     private var overlayHost: OverlayHost? = null
 
+    /** Keeps the floating start/stop bubble in step with screen capture being active. */
+    private val captureStateListener: (Boolean) -> Unit = { active ->
+        overlayHost?.setControlsVisible(active)
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
 
     override fun onInterrupt() = Unit
@@ -96,15 +121,23 @@ class TapService : AccessibilityService(), GestureSink {
         overlays.show()
         overlayHost = overlays
         Orchestrator.attach(gestures = this, hud = overlays.hud)
+        // addStateListener reports the current value immediately, so this also sets the initial state.
+        ScreenCaptureService.addStateListener(captureStateListener)
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
         Log.i(TAG, "onUnbind")
+        ScreenCaptureService.removeStateListener(captureStateListener)
         Orchestrator.detach()
         overlayHost?.hide()
         overlayHost = null
         resetHold()
         return super.onUnbind(intent)
+    }
+
+    override fun onDestroy() {
+        ScreenCaptureService.removeStateListener(captureStateListener)
+        super.onDestroy()
     }
 
     override fun press(x: Int, y: Int, durationMs: Long) {

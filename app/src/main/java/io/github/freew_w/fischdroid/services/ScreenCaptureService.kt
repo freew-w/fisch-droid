@@ -18,6 +18,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.createBitmap
 import androidx.window.layout.WindowMetricsCalculator
@@ -27,8 +28,36 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import java.util.concurrent.CopyOnWriteArraySet
 
 class ScreenCaptureService : Service() {
+    companion object {
+        private const val TAG = "ScreenCaptureService"
+
+        /** True while a capture session is live. Read by the main screen in the same process. */
+        @Volatile
+        var isActive: Boolean = false
+            private set
+
+        private val stateListeners = CopyOnWriteArraySet<(Boolean) -> Unit>()
+
+        /** Registers [listener] and immediately reports the current state. */
+        fun addStateListener(listener: (Boolean) -> Unit) {
+            stateListeners += listener
+            listener(isActive)
+        }
+
+        fun removeStateListener(listener: (Boolean) -> Unit) {
+            stateListeners -= listener
+        }
+
+        private fun setActive(active: Boolean) {
+            if (isActive == active) return
+            isActive = active
+            stateListeners.forEach { it(active) }
+        }
+    }
+
     private class CaptureSession(
         val projection: MediaProjection,
         var reader: ImageReader,
@@ -53,6 +82,14 @@ class ScreenCaptureService : Service() {
             } else {
                 stopSelf()
             }
+            return START_NOT_STICKY
+        }
+
+        // Accessibility is a hard prerequisite: without it frames are ignored and taps cannot be
+        // injected, so refuse to hold a projection instead of confusing the user.
+        if (!TapService.isEnabled(this)) {
+            Log.w(TAG, "Refusing screen capture: accessibility service is not enabled")
+            stopSelf()
             return START_NOT_STICKY
         }
 
@@ -96,6 +133,7 @@ class ScreenCaptureService : Service() {
         }
         session = CaptureSession(projection, reader, display)
         attachFrameListener(reader)
+        setActive(true)
 
         return START_NOT_STICKY
     }
@@ -148,6 +186,7 @@ class ScreenCaptureService : Service() {
     }
 
     private fun releaseSession() {
+        setActive(false)
         val current = session ?: return
         session = null
         current.projection.stop()

@@ -60,12 +60,25 @@ AndroidX, not declared in `app/build.gradle.kts`.
   After the wizard (or once setup is already complete) it requests `POST_NOTIFICATIONS` on Android
   13+, then MediaProjection consent on launch; accepting starts `ScreenCaptureService`. Its buttons
   open accessibility settings, start/stop capture, and launch `SetupActivity` for the track region
-  and fish colour.
+  and fish colour. Capture start is gated on accessibility: `TapService.isEnabled(context)` reads
+  the system's enabled-service list (not the pipeline), `btn_toggle_capture` is disabled until it
+  is true, `requestNotificationsThenCapture`/`launchScreenCapture` toast
+  `capture_requires_accessibility`, and `ScreenCaptureService.onStartCommand` refuses a non-STOP
+  start. `ScreenCaptureService.isActive` (companion flag + listener registry) is set when a session
+  is created and cleared in `releaseSession`; `MainActivity.renderStatus` (called from `onCreate`,
+  `onStart` via the listener, and `onResume`) tints `card_hero` red (`md_error_container`) for
+  "Accessibility needed", sand (`md_tertiary_container`) for "Capture ready to start", and sea-blue
+  (`md_primary_container`) for "Ready to fish", swapping the badge icon to `ic_android`/`ic_play`/
+  `ic_fish`. The same pass calls `renderCaptureButton`: one button serves both actions, reading
+  "Start capture" (the style's own stateful filled tints, captured in `onCreate` so the gated state
+  still grays out, `ic_play`) when idle and "Stop capture" (tonal `md_secondary_container`,
+  `ic_stop`) while `isActive`, so only the available action is ever shown.
 - `TapService.onServiceConnected` creates the `OverlayHost`, calls `Orchestrator.attach(this,
   overlays.hud)`, and starts the overlays. `Orchestrator` is the process-wide composition root: it
   builds a `FishingPipeline` with the real detectors/controller and `Config::snapshot`, and exposes
   `processFrame`/`toggle`/`isRunning`. `onUnbind` calls `Orchestrator.detach()` and hides overlays.
-  Before the accessibility service attaches, `Orchestrator.processFrame` is a no-op.
+  Before the accessibility service attaches, `Orchestrator.processFrame` is a no-op; that guard is
+  defensive only, because capture cannot be started until the service is enabled.
 - `ScreenCaptureService` feeds frames to `Orchestrator.processFrame(bitmap, frameWidth,
   frameHeight)` from its worker coroutine. The pipeline may run detectors on that worker thread;
   `DetectionHud` and `TapService` marshal their own work to the main thread.
@@ -127,7 +140,12 @@ AndroidX, not declared in `app/build.gradle.kts`.
   is a class implementing `DetectionHudSink`; it coalesces identical updates and posts view
   mutations to the main thread. `FloatingControls` is a class that takes `isRunning`/`onToggle`
   callbacks, so it has no dependency on the pipeline or `Orchestrator`. Both use
-  `TYPE_ACCESSIBILITY_OVERLAY`; there is no `SYSTEM_ALERT_WINDOW` permission.
+  `TYPE_ACCESSIBILITY_OVERLAY`; there is no `SYSTEM_ALERT_WINDOW` permission. The start/stop bubble
+  is gated on readiness: `OverlayHost.setControlsVisible` only attaches it while
+  `ScreenCaptureService.isActive`, and `TapService` drives that from
+  `ScreenCaptureService.addStateListener` (registered in `onServiceConnected`, removed in `onUnbind`
+  and `onDestroy`). A hidden bubble is not an overlay at all, so it cannot be dragged or tapped
+  until capture starts; the main screen's hero shows the same readiness.
 - The accessibility service (`TapService`) must be enabled manually before the overlay or gestures
   work.
 - Keep R8 keep rules in `app/src/main/keepRules/*.keep` (AGP 9 location), not a

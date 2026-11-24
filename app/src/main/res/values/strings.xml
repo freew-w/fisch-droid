@@ -28,6 +28,12 @@
     <string name="home_hero_title">Ready to fish</string>
     <string name="home_hero_body">Fisch Droid watches the screen, casts, and fights the fish for you.</string>
     <string name="home_hero_icon_desc">Fish</string>
+    <string name="home_hero_accessibility_title">Accessibility needed</string>
+    <string name="home_hero_accessibility_body">Enable the accessibility service so Droid can tap for you.</string>
+    <string name="home_hero_accessibility_body_capturing">Screen capture is running, but Droid cannot tap until the accessibility service is enabled.</string>
+    <string name="home_hero_capture_title">Capture ready to start</string>
+    <string name="home_hero_capture_body">Accessibility is on. Start screen capture so Droid can see the game.</string>
+    <string name="capture_requires_accessibility">Enable the accessibility service before starting capture</string>
     <string name="section_automation_title">Automation</string>
     <string name="section_automation_body">Accessibility gestures and screen capture</string>
     <string name="section_track_title">Track region</string>

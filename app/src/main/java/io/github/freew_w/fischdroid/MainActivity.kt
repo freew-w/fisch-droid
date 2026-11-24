@@ -17,12 +17,16 @@ import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
 import io.github.freew_w.fischdroid.config.Config
 import io.github.freew_w.fischdroid.services.ScreenCaptureService
+import io.github.freew_w.fischdroid.services.TapService
 import io.github.freew_w.fischdroid.setup.PixelPoint
 import io.github.freew_w.fischdroid.setup.RegionSelection
 import io.github.freew_w.fischdroid.setup.SetupActivity
@@ -31,7 +35,21 @@ import io.github.freew_w.fischdroid.setup.SetupWizardActivity
 import io.github.freew_w.fischdroid.setup.toHexColor
 
 class MainActivity : AppCompatActivity() {
+    /** Setup stages shown by the hero card, in the order the user has to satisfy them. */
+    private enum class HeroStage { ACCESSIBILITY, CAPTURE, READY }
+
     private val boundFields = mutableListOf<Pair<EditText, () -> Any?>>()
+
+    /**
+     * The themed (stateful) tints of the idle capture button, captured before the first render so
+     * the disabled state keeps Material's grayed-out look instead of a flat overridden color.
+     */
+    private var idleBackgroundTint: ColorStateList? = null
+    private var idleContentColor: ColorStateList? = null
+    private var idleIconTint: ColorStateList? = null
+
+    /** Re-renders the hero whenever the capture service starts or stops. */
+    private val captureStateListener: (Boolean) -> Unit = { renderStatus() }
 
     private val startMediaProjection = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -116,16 +134,21 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.enable_accessibility_hint, Toast.LENGTH_LONG).show()
         }
 
-        findViewById<View>(R.id.btn_start_capture).setOnClickListener {
-            requestNotificationsThenCapture()
-        }
-
-        findViewById<View>(R.id.btn_stop_capture).setOnClickListener {
-            startService(
-                Intent(this, ScreenCaptureService::class.java).putExtra(
-                    "ACTION", "STOP"
+        findViewById<View>(R.id.btn_toggle_capture).setOnClickListener {
+            if (ScreenCaptureService.isActive) {
+                startService(
+                    Intent(this, ScreenCaptureService::class.java).putExtra(
+                        "ACTION", "STOP"
+                    )
                 )
-            )
+            } else {
+                requestNotificationsThenCapture()
+            }
+        }
+        findViewById<MaterialButton>(R.id.btn_toggle_capture).run {
+            idleBackgroundTint = backgroundTintList
+            idleContentColor = textColors
+            idleIconTint = iconTint
         }
 
         findViewById<View>(R.id.btn_pick_track_region).setOnClickListener {
@@ -212,10 +235,27 @@ class MainActivity : AppCompatActivity() {
         )
 
         updateConfigUi()
+        renderStatus()
 
         if (savedInstanceState == null && !Config.setupComplete) {
             wizardLauncher.launch(Intent(this, SetupWizardActivity::class.java))
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        ScreenCaptureService.addStateListener(captureStateListener)
+    }
+
+    override fun onStop() {
+        ScreenCaptureService.removeStateListener(captureStateListener)
+        super.onStop()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Picks up an accessibility toggle the user just made in system settings.
+        renderStatus()
     }
 
     private fun openRegionPicker() {
@@ -276,7 +316,116 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Paints the hero card with the current setup stage: red until the accessibility service is
+     * enabled, sand until capture is running, sea-blue once the macro can actually fish.
+     */
+    private fun renderStatus() {
+        val accessibilityEnabled = TapService.isEnabled(this)
+        val capturing = ScreenCaptureService.isActive
+        val stage = when {
+            !accessibilityEnabled -> HeroStage.ACCESSIBILITY
+            !capturing -> HeroStage.CAPTURE
+            else -> HeroStage.READY
+        }
+
+        val titleRes: Int
+        val bodyRes: Int
+        val cardColor: Int
+        val badgeColor: Int
+        val badgeIconColor: Int
+        val textColor: Int
+        val iconRes: Int
+        when (stage) {
+            HeroStage.ACCESSIBILITY -> {
+                titleRes = R.string.home_hero_accessibility_title
+                bodyRes = if (capturing) {
+                    R.string.home_hero_accessibility_body_capturing
+                } else {
+                    R.string.home_hero_accessibility_body
+                }
+                cardColor = R.color.md_error_container
+                badgeColor = R.color.md_error
+                badgeIconColor = R.color.md_on_error
+                textColor = R.color.md_on_error_container
+                iconRes = R.drawable.ic_android
+            }
+
+            HeroStage.CAPTURE -> {
+                titleRes = R.string.home_hero_capture_title
+                bodyRes = R.string.home_hero_capture_body
+                cardColor = R.color.md_tertiary_container
+                badgeColor = R.color.md_tertiary
+                badgeIconColor = R.color.md_on_tertiary
+                textColor = R.color.md_on_tertiary_container
+                iconRes = R.drawable.ic_play
+            }
+
+            HeroStage.READY -> {
+                titleRes = R.string.home_hero_title
+                bodyRes = R.string.home_hero_body
+                cardColor = R.color.md_primary_container
+                badgeColor = R.color.md_primary
+                badgeIconColor = R.color.md_on_primary
+                textColor = R.color.md_on_primary_container
+                iconRes = R.drawable.ic_fish
+            }
+        }
+
+        findViewById<MaterialCardView>(R.id.card_hero).setCardBackgroundColor(
+            ContextCompat.getColor(this, cardColor)
+        )
+        val badge = findViewById<AppCompatImageView>(R.id.hero_badge)
+        badge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, badgeColor))
+        badge.imageTintList =
+            ColorStateList.valueOf(ContextCompat.getColor(this, badgeIconColor))
+        badge.setImageResource(iconRes)
+
+        val resolvedTextColor = ContextCompat.getColor(this, textColor)
+        findViewById<TextView>(R.id.tv_hero_title).apply {
+            setText(titleRes)
+            setTextColor(resolvedTextColor)
+        }
+        findViewById<TextView>(R.id.tv_hero_body).apply {
+            setText(bodyRes)
+            setTextColor(resolvedTextColor)
+        }
+
+        renderCaptureButton(capturing, accessibilityEnabled)
+    }
+
+    /**
+     * One button serves both actions because only one of them is ever available: it starts capture
+     * once accessibility is on and turns into a tonal "Stop capture" while a session runs. The idle
+     * state restores the style's own stateful tints, so a gated button still grays out.
+     */
+    private fun renderCaptureButton(capturing: Boolean, accessibilityEnabled: Boolean) {
+        val toggle = findViewById<MaterialButton>(R.id.btn_toggle_capture)
+        toggle.isEnabled = capturing || accessibilityEnabled
+        if (capturing) {
+            val onContainer = ContextCompat.getColor(this, R.color.md_on_secondary_container)
+            toggle.setText(R.string.stop_screen_capture)
+            toggle.setIconResource(R.drawable.ic_stop)
+            toggle.backgroundTintList = ColorStateList.valueOf(
+                ContextCompat.getColor(this, R.color.md_secondary_container)
+            )
+            toggle.setTextColor(onContainer)
+            toggle.iconTint = ColorStateList.valueOf(onContainer)
+        } else {
+            toggle.setText(R.string.start_screen_capture)
+            toggle.setIconResource(R.drawable.ic_play)
+            toggle.backgroundTintList = idleBackgroundTint
+            toggle.setTextColor(idleContentColor)
+            toggle.iconTint = idleIconTint
+        }
+    }
+
     private fun requestNotificationsThenCapture() {
+        if (!TapService.isEnabled(this)) {
+            showAccessibilityRequired()
+            return
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(
                 this, Manifest.permission.POST_NOTIFICATIONS
             ) != PackageManager.PERMISSION_GRANTED
@@ -288,8 +437,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun launchScreenCapture() {
+        if (!TapService.isEnabled(this)) {
+            showAccessibilityRequired()
+            return
+        }
+
         val manager = getSystemService(MediaProjectionManager::class.java)
         startMediaProjection.launch(manager.createScreenCaptureIntent())
+    }
+
+    private fun showAccessibilityRequired() {
+        Toast.makeText(this, R.string.capture_requires_accessibility, Toast.LENGTH_LONG).show()
+        renderStatus()
     }
 
     /**

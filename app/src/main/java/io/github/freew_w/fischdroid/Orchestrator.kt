@@ -46,7 +46,10 @@ object Orchestrator {
         pipeline = null
     }
 
-    /** No-op until [attach] runs, so capture can start before accessibility is enabled. */
+    /**
+     * No-op until [attach] runs. Capture is gated on the accessibility service, so this is only a
+     * defensive guard for the window between capture start and the accessibility service attaching.
+     */
     fun processFrame(bitmap: Bitmap, frameWidth: Int, frameHeight: Int) {
         pipeline?.processFrame(bitmap, frameWidth, frameHeight)
     }
